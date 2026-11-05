@@ -176,15 +176,18 @@ function bgmTick(mode){
 
 // ================= ステージ・ロッド・メダル =================
 const STAGES=[
-  {name:'サンゴ礁',bosses:['megalo','kingyo','kaiser'],sea:['#0a4f9a','#1497cf','#5ad8e2'],rock:'rgba(8,40,70,.6)',moss:'rgba(255,120,170,.35)'},
-  {name:'深海',bosses:['meikai','deathocto','plesio'],sea:['#01061a','#05204f','#0b3f78'],rock:'rgba(0,0,10,.6)',moss:'rgba(90,120,255,.25)'},
-  {name:'伝説の海域',bosses:['dragon','mosa','godlev','posshark'],sea:['#120634','#2e1d86','#6a52cf'],rock:'rgba(10,0,40,.6)',moss:'rgba(255,210,63,.25)'},
+  {name:'サンゴ礁',deco:'coral',bosses:['kingyo','kaiser'],sea:['#0a4f9a','#1497cf','#5ad8e2'],rock:'rgba(8,40,70,.6)',moss:'rgba(255,120,170,.35)'},
+  {name:'深海',deco:'deep',bosses:['meikai','deathocto'],sea:['#01061a','#06204a','#13235a'],rock:'rgba(0,0,10,.6)',moss:'rgba(120,90,255,.25)'},
+  {name:'流氷',deco:'ice',bosses:['megalo','posshark'],sea:['#8fdcf3','#45aedb','#1d6aa3'],rock:'rgba(225,245,255,.45)',moss:'rgba(255,255,255,.55)'},
+  {name:'古代遺跡',deco:'ruins',bosses:['plesio','mosa'],sea:['#36b8b0','#178a88','#0b5157'],rock:'rgba(10,60,60,.55)',moss:'rgba(120,200,120,.35)'},
+  {name:'伝説の海域',deco:'legend',bosses:['dragon','godlev'],sea:['#120634','#2e1d86','#6a52cf'],rock:'rgba(10,0,40,.6)',moss:'rgba(255,210,63,.25)'},
 ];
-const HOME={sayori:[0,2],kani:[0,1],togefugu:[0],pataei:[0,1],gurutako:[0,1],aji:[0,2],hakofugu:[0],mebaru:[0,2],tai:[0,2],kasago:[0,1],ika:[1,2],tachiuo:[1,2],utsubo:[0,1],manbou:[0,2],
-  arowana:[0],ankou:[1],raiutsubo:[1],kame:[0,2],ei:[2],coela:[1],ryugu:[1],hammer:[2],kajiki:[0,2],tako:[1],
-  magma:[2],cyber:[2],ice:[1],drill:[0],eleki:[1],bombei:[0],stealth:[2]};
+// 0:サンゴ礁 1:深海 2:流氷 3:古代遺跡 4:伝説の海域
+const HOME={sayori:[0,2,4],kani:[0,1,2],togefugu:[0],pataei:[0,1,3],gurutako:[0,1,3],aji:[0,2,4],hakofugu:[0,3],mebaru:[0,3,4],tai:[0,4],kasago:[0,1,3],ika:[1,2,4],tachiuo:[1,2,4],utsubo:[0,1,3],manbou:[0,2,4],
+  arowana:[0,3],ankou:[1],raiutsubo:[1,3],kame:[0,3,4],ei:[4],coela:[1,3],ryugu:[1,2],hammer:[2,4],kajiki:[0,2,4],tako:[1,3],
+  magma:[1,4],cyber:[4],ice:[1,2],drill:[0,3],eleki:[1],bombei:[0,3],stealth:[2,4]};
 FISH.forEach(f=>{
-  f.home=f.cls==='legend'?STAGES.map((s,i)=>s.bosses.includes(f.id)?i:-1).filter(i=>i>=0):f.cls==='gimmick'?[0,1,2]:HOME[f.id];
+  f.home=f.cls==='legend'?STAGES.map((s,i)=>s.bosses.includes(f.id)?i:-1).filter(i=>i>=0):f.cls==='gimmick'?STAGES.map((_,i)=>i):HOME[f.id];
   f.medal=f.cls==='legend'?150:f.cls==='monster'?40:f.cls==='gimmick'?({treasure:30,bomb:-5,time:3,ink:3,crab:100})[f.gim]:({1:2,2:3,3:5,4:10,5:15})[f.star];
   f.hp=Math.round(20+f.pw*f.pw*6);
 });
@@ -193,7 +196,7 @@ const RODS=[
   {id:'power',name:'パワーロッド',cost:3,dmg:1,ten:.6,shock:.42,aff:{S:.35,M:.8,L:1,XL:.85},color:'#ff8a2a',desc:'大きい魚影が かかりやすい。じょうぶで 切れにくい'},
   {id:'legend',name:'レジェンドロッド',cost:5,dmg:1.5,ten:.55,shock:.55,aff:{S:.85,M:1,L:1,XL:1},color:'#ffd23f',desc:'なんでも つれる さいきょうのロッド',unlock:15},
 ];
-const STAGE_LEN=150, BOSS_AT=60, FEVER_LEN=10, BOSS_RETURN=4;
+const STAGE_LEN=110, BOSS_AT=60, FEVER_LEN=10, BOSS_RETURN=4, BOSS_NEXT=3;
 
 // ================= 画面 =================
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
@@ -249,21 +252,91 @@ let causticPat=null;
 const rocks=Array.from({length:7},(_,i)=>({side:i%2,y:Math.random(),r:rnd(26,54),s:Math.random()}));
 const snow=Array.from({length:40},()=>({x:Math.random(),y:Math.random(),s:rnd(.01,.03)}));
 function drawWater(stage,fever,t){
-  const st=STAGES[stage],g1=ctx.createLinearGradient(0,0,0,H);
+  const st=STAGES[stage],deco=st.deco,g1=ctx.createLinearGradient(0,0,0,H);
   if(fever){const k=(Math.sin(t*6)+1)/2;g1.addColorStop(0,'#3a0b52');g1.addColorStop(.6,`hsl(${290+k*40},70%,42%)`);g1.addColorStop(1,'#ff8ad8');}
   else{g1.addColorStop(0,st.sea[0]);g1.addColorStop(.55,st.sea[1]);g1.addColorStop(1,st.sea[2]);}
   ctx.fillStyle=g1;ctx.fillRect(-20,-20,W+40,H+40);
+  if(!fever)drawScenery(deco,t);
   if(!causticPat)causticPat=ctx.createPattern(CAUSTIC,'repeat');
   ctx.save();ctx.globalCompositeOperation='lighter';
-  const ca=stage===1&&!fever?.35:1;
+  const ca=fever?1:deco==='deep'?.3:deco==='ice'?1.25:1;
   [[2.4,8,5,.22],[3.1,-6,9,.14]].forEach(([sc,vx,vy,a])=>{const s2=sc*S,tile=160*s2;ctx.save();ctx.globalAlpha=a*ca;ctx.translate(((t*vx*S)%tile)-tile,((t*vy*S)%tile)-tile);ctx.scale(s2,s2);ctx.fillStyle=causticPat;ctx.fillRect(0,0,(W+tile*2)/s2,(H+tile*2)/s2);ctx.restore();});
-  if(stage===1){ctx.fillStyle='rgba(200,230,255,.5)';for(const p of snow){ctx.beginPath();ctx.arc(p.x*W+Math.sin(t+p.y*9)*8,((p.y+t*p.s)%1)*H,1.4*S,0,7);ctx.fill();}}
-  if(stage===2){for(let i=0;i<5;i++){const x=W*((i*.29+.1)%1),y=H*((i*.43+.2)%1)*.8+TOP;const gr=ctx.createRadialGradient(x,y,0,x,y,90*S);gr.addColorStop(0,'rgba(255,220,120,'+(.08+Math.sin(t*2+i)*.04)+')');gr.addColorStop(1,'rgba(255,220,120,0)');ctx.fillStyle=gr;ctx.fillRect(x-90*S,y-90*S,180*S,180*S);}}
+  if(deco==='legend'){for(let i=0;i<5;i++){const x=W*((i*.29+.1)%1),y=H*((i*.43+.2)%1)*.8+TOP;const gr=ctx.createRadialGradient(x,y,0,x,y,90*S);gr.addColorStop(0,'rgba(255,220,120,'+(.08+Math.sin(t*2+i)*.04)+')');gr.addColorStop(1,'rgba(255,220,120,0)');ctx.fillStyle=gr;ctx.fillRect(x-90*S,y-90*S,180*S,180*S);}}
   ctx.restore();
-  for(const r of rocks){const x=r.side?W+r.r*.3*S:-r.r*.3*S,y=TOP+r.y*(BOTTOM-TOP),rad=r.r*S;
+  if(deco!=='ice'&&deco!=='ruins')for(const r of rocks){const x=r.side?W+r.r*.3*S:-r.r*.3*S,y=TOP+r.y*(BOTTOM-TOP),rad=r.r*S;
     ctx.fillStyle=st.rock;ctx.beginPath();ctx.ellipse(x,y,rad,rad*.8,r.s,0,7);ctx.fill();
     ctx.fillStyle=st.moss;ctx.beginPath();ctx.ellipse(x+(r.side?-1:1)*rad*.25,y-rad*.2,rad*.45,rad*.3,r.s,0,7);ctx.fill();}
-  const v=ctx.createLinearGradient(0,0,0,H*.45);v.addColorStop(0,'rgba(2,12,35,.45)');v.addColorStop(1,'rgba(2,12,35,0)');ctx.fillStyle=v;ctx.fillRect(0,0,W,H*.45);
+  const v=ctx.createLinearGradient(0,0,0,H*.45);v.addColorStop(0,deco==='ice'?'rgba(255,255,255,.18)':'rgba(2,12,35,.45)');v.addColorStop(1,'rgba(2,12,35,0)');ctx.fillStyle=v;ctx.fillRect(0,0,W,H*.45);
+}
+const PLANK=Array.from({length:60},()=>({x:Math.random(),y:Math.random(),s:rnd(.006,.02),r:rnd(.8,2.2),p:Math.random()*6}));
+function coralBranch(x,y,a,len,w,d){if(d>3)return;const x2=x+Math.cos(a)*len,y2=y+Math.sin(a)*len;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke();coralBranch(x2,y2,a-.45,len*.7,w*.7,d+1);coralBranch(x2,y2,a+.4,len*.72,w*.7,d+1);}
+function drawScenery(deco,t){
+  const midY=(TOP+BOTTOM)/2;
+  if(deco==='deep'){
+    // 海底の丘・サンゴ・海底火山
+    ctx.fillStyle='rgba(32,18,70,.75)';ctx.beginPath();ctx.moveTo(0,PIER);
+    for(let x=0;x<=W+20;x+=20)ctx.lineTo(x,BOTTOM-24*S-Math.sin(x*.012+1)*26*S-Math.sin(x*.05)*6*S);ctx.lineTo(W,PIER);ctx.fill();
+    ctx.strokeStyle='rgba(60,30,110,.85)';ctx.lineCap='round';
+    coralBranch(W*.2,BOTTOM-20*S,-Math.PI/2-.1,34*S,6*S,0);coralBranch(W*.33,BOTTOM-16*S,-Math.PI/2+.15,26*S,5*S,0);
+    const vx=W*.78,vy=BOTTOM-30*S;
+    ctx.fillStyle='rgba(55,30,95,.95)';ctx.beginPath();ctx.moveTo(vx-48*S,vy+20*S);ctx.lineTo(vx-12*S,vy-38*S);ctx.lineTo(vx+12*S,vy-38*S);ctx.lineTo(vx+48*S,vy+20*S);ctx.fill();
+    ctx.fillStyle='rgba(120,200,255,.5)';ctx.beginPath();ctx.ellipse(vx,vy-38*S,12*S,3.5*S,0,0,7);ctx.fill();
+    for(let i=0;i<10;i++){const k=((t*.12+i/10)%1),py=vy-40*S-k*(BOTTOM-TOP)*.8,px=vx+Math.sin(k*8+i)*14*S*k;ctx.fillStyle='rgba(150,170,255,'+(.16*(1-k))+')';ctx.beginPath();ctx.arc(px,py,(8+k*22)*S,0,7);ctx.fill();}
+    // 光る玉
+    for(const[ox,oy,ph]of[[W*.13,BOTTOM-50*S,0],[W*.9,BOTTOM-70*S,2]]){ctx.strokeStyle='rgba(40,90,90,.9)';ctx.lineWidth=2*S;ctx.beginPath();ctx.moveTo(ox,oy+40*S);ctx.quadraticCurveTo(ox-8*S,oy+18*S,ox,oy);ctx.stroke();
+      const r=(16+Math.sin(t*2+ph)*3)*S,gr=ctx.createRadialGradient(ox,oy,0,ox,oy,r*2);gr.addColorStop(0,'rgba(140,255,230,.9)');gr.addColorStop(.3,'rgba(80,220,200,.35)');gr.addColorStop(1,'rgba(80,220,200,0)');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(ox,oy,r*2,0,7);ctx.fill();}
+    // プランクトン
+    ctx.save();ctx.globalCompositeOperation='lighter';for(const p of PLANK){const a=.25+.5*(Math.sin(t*3+p.p)*.5+.5);ctx.fillStyle='rgba(170,230,255,'+a+')';ctx.beginPath();ctx.arc(p.x*W+Math.sin(t*.7+p.p)*10*S,TOP+(((p.y-t*p.s)%1+1)%1)*(PIER-TOP),p.r*S,0,7);ctx.fill();}ctx.restore();
+  }
+  else if(deco==='ice'){
+    // 光のすじ
+    ctx.save();ctx.globalCompositeOperation='lighter';for(let i=0;i<5;i++){const x=W*(.1+i*.2)+Math.sin(t*.3+i)*20*S;ctx.fillStyle='rgba(255,255,255,.07)';ctx.beginPath();ctx.moveTo(x-14*S,TOP);ctx.lineTo(x+14*S,TOP);ctx.lineTo(x+70*S,BOTTOM);ctx.lineTo(x-40*S,BOTTOM);ctx.fill();}ctx.restore();
+    // 氷山
+    const bx=W*.5,by=BOTTOM+10*S,top=TOP+70*S;
+    ctx.fillStyle='rgba(255,255,255,.17)';ctx.beginPath();ctx.moveTo(W*.18,by);ctx.lineTo(W*.36,top+90*S);ctx.lineTo(W*.47,top+20*S);ctx.lineTo(W*.55,top);ctx.lineTo(W*.66,top+70*S);ctx.lineTo(W*.84,by);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.1)';ctx.beginPath();ctx.moveTo(W*.55,top);ctx.lineTo(W*.6,by);ctx.lineTo(W*.84,by);ctx.lineTo(W*.66,top+70*S);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=1.5*S;ctx.beginPath();ctx.moveTo(W*.47,top+20*S);ctx.lineTo(W*.42,by);ctx.moveTo(W*.55,top);ctx.lineTo(W*.6,by);ctx.stroke();
+    // 流氷（水面にうかぶ氷）
+    for(let i=0;i<6;i++){const fx=W*(i/5)+Math.sin(t*.4+i)*6*S,fy=TOP+12*S+(i%2)*14*S+Math.sin(t*1.1+i*2)*2*S,fw=(70+(i*37)%40)*S,fh=16*S;
+      ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.ellipse(fx,fy+fh,fw*.55,6*S,0,0,7);ctx.fill();
+      ctx.fillStyle='#bfe8f7';ctx.beginPath();ctx.moveTo(fx-fw/2,fy+4*S);ctx.lineTo(fx-fw/2+8*S,fy+fh);ctx.lineTo(fx+fw/2-6*S,fy+fh);ctx.lineTo(fx+fw/2,fy+4*S);ctx.fill();
+      ctx.fillStyle='#f6fdff';ctx.beginPath();ctx.moveTo(fx-fw/2,fy+4*S);ctx.lineTo(fx-fw/2+10*S,fy-6*S);ctx.lineTo(fx+fw/2-8*S,fy-7*S);ctx.lineTo(fx+fw/2,fy+4*S);ctx.closePath();ctx.fill();}
+    // 雪のけっしょう
+    ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=1.2*S;for(let i=0;i<14;i++){const p=PLANK[i],x=p.x*W+Math.sin(t*.8+p.p)*14*S,y=TOP+(((p.y+t*p.s*1.5)%1))*(PIER-TOP),r=(3+p.r*2)*S;
+      ctx.beginPath();for(let k=0;k<3;k++){const a=k*Math.PI/3+t*.5;ctx.moveTo(x-Math.cos(a)*r,y-Math.sin(a)*r);ctx.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);}ctx.stroke();}
+  }
+  else if(deco==='ruins'){
+    const C='rgba(205,255,245,.16)',L='rgba(230,255,250,.25)';
+    // 光のすじ
+    ctx.save();ctx.globalCompositeOperation='lighter';for(let i=0;i<4;i++){const x=W*(.2+i*.22)+Math.sin(t*.3+i)*20*S;ctx.fillStyle='rgba(220,255,240,.06)';ctx.beginPath();ctx.moveTo(x-16*S,0);ctx.lineTo(x+16*S,0);ctx.lineTo(x+80*S,BOTTOM);ctx.lineTo(x-40*S,BOTTOM);ctx.fill();}ctx.restore();
+    // しんでん
+    const tx=W*.5,tw=W*.47,ry=TOP+60*S,cb=TOP+(BOTTOM-TOP)*.58;
+    ctx.fillStyle=C;ctx.strokeStyle=L;ctx.lineWidth=1.5*S;
+    ctx.beginPath();ctx.moveTo(tx,ry+40*S);ctx.lineTo(tx+tw/2,ry);ctx.lineTo(tx+tw,ry+40*S);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillRect(tx-4*S,ry+40*S,tw+8*S,14*S);ctx.strokeRect(tx-4*S,ry+40*S,tw+8*S,14*S);
+    for(let i=0;i<4;i++){const cx=tx+tw*(.1+i*.27),cw=14*S;ctx.fillRect(cx-cw/2,ry+54*S,cw,cb-ry-54*S);ctx.strokeRect(cx-cw/2,ry+54*S,cw,cb-ry-54*S);}
+    for(let i=0;i<4;i++){const sw=tw+(i*2+2)*12*S;ctx.fillRect(tx+tw/2-sw/2,cb+i*10*S,sw,10*S);ctx.strokeRect(tx+tw/2-sw/2,cb+i*10*S,sw,10*S);}
+    ctx.strokeStyle='rgba(90,200,110,.5)';ctx.lineWidth=2.5*S;ctx.beginPath();ctx.moveTo(tx+tw*.1,ry+54*S);ctx.quadraticCurveTo(tx+tw*.05,ry+110*S,tx+tw*.14,ry+150*S);ctx.moveTo(tx+tw*.64,ry+54*S);ctx.quadraticCurveTo(tx+tw*.7,ry+100*S,tx+tw*.62,ry+130*S);ctx.stroke();
+    // アーチと柱
+    ctx.fillStyle=C;ctx.strokeStyle=L;ctx.lineWidth=1.5*S;
+    const ax=W*.08,aw=W*.26,ab=midY+30*S,ah=90*S;
+    ctx.fillRect(ax,ab-ah,14*S,ah);ctx.fillRect(ax+aw-14*S,ab-ah,14*S,ah);ctx.beginPath();ctx.arc(ax+aw/2,ab-ah,aw/2,Math.PI,0);ctx.arc(ax+aw/2,ab-ah,aw/2-14*S,0,Math.PI,true);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.save();ctx.translate(W*.22,BOTTOM-6*S);ctx.rotate(-.12);ctx.fillRect(-46*S,-10*S,92*S,20*S);ctx.strokeRect(-46*S,-10*S,92*S,20*S);ctx.restore();
+    // 砂
+    ctx.fillStyle='rgba(150,220,195,.22)';ctx.beginPath();ctx.moveTo(0,PIER);for(let x=0;x<=W+20;x+=20)ctx.lineTo(x,BOTTOM-20*S-Math.sin(x*.015)*18*S);ctx.lineTo(W,PIER);ctx.fill();
+    // たからばこ
+    const kx=W*.2,ky=BOTTOM-44*S,kw=54*S,kh=30*S;
+    ctx.fillStyle='#6b3f1c';rr(kx-kw/2,ky-kh/2,kw,kh,4*S);ctx.fill();ctx.fillStyle='#8b5527';rr(kx-kw/2,ky-kh/2-14*S,kw,16*S,6*S);ctx.fill();
+    ctx.fillStyle='#e0a800';ctx.fillRect(kx-kw/2,ky-4*S,kw,4*S);ctx.fillRect(kx-3*S,ky-8*S,6*S,10*S);
+    for(let i=0;i<5;i++){const a=.5+Math.sin(t*3+i)*.5;ctx.fillStyle='rgba(255,230,120,'+a+')';ctx.beginPath();ctx.arc(kx-kw/2+i*kw/4,ky-kh/2-16*S,3*S,0,7);ctx.fill();}
+    // つぼ
+    const vx=W*.8,vy=BOTTOM-40*S;ctx.fillStyle='#8a5634';ctx.beginPath();ctx.ellipse(vx,vy,20*S,24*S,0,0,7);ctx.fill();ctx.fillRect(vx-9*S,vy-34*S,18*S,14*S);ctx.fillStyle='#a8714a';ctx.beginPath();ctx.ellipse(vx,vy-34*S,11*S,4*S,0,0,7);ctx.fill();
+    ctx.strokeStyle='#8a5634';ctx.lineWidth=4*S;ctx.beginPath();ctx.arc(vx+16*S,vy-18*S,8*S,-1.4,1.2);ctx.stroke();
+  }
+  else if(deco==='coral'){
+    ctx.strokeStyle='rgba(255,130,180,.28)';ctx.lineCap='round';
+    coralBranch(W*.24,BOTTOM+24*S,-Math.PI/2-.2,30*S,6*S,0);coralBranch(W*.74,BOTTOM+20*S,-Math.PI/2+.2,34*S,6*S,0);
+  }
 }
 function drawPier(){
   const y=PIER,pl=(H-y)/4;
@@ -274,12 +347,32 @@ function drawPier(){
   ctx.fillStyle='#c99258';ctx.fillRect(0,y,W,4*S);
   for(const px of [W*.1,W*.36,W*.64,W*.9]){ctx.fillStyle='#6b4120';rr(px-10*S,y-16*S,20*S,24*S,4*S);ctx.fill();ctx.fillStyle='#b88550';ctx.beginPath();ctx.ellipse(px,y-16*S,10*S,4.5*S,0,0,7);ctx.fill();ctx.strokeStyle='#7a4e27';ctx.lineWidth=1*S;ctx.beginPath();ctx.ellipse(px,y-16*S,5.5*S,2.2*S,0,0,7);ctx.stroke();}
   for(const[px,py,r]of[[W*.04,y+(H-y)*.5,64],[W*.97,y+(H-y)*.42,72]]){ctx.fillStyle='rgba(140,200,235,.38)';ctx.beginPath();ctx.ellipse(px,py,r*S,15*S,0,0,7);ctx.fill();ctx.fillStyle='rgba(255,255,255,.4)';ctx.beginPath();ctx.ellipse(px-r*.25*S,py-4*S,r*.3*S,2.6*S,0,0,7);ctx.fill();}
+  const deco=g?STAGES[g.stage].deco:'coral';
+  if(deco==='ice'){ // 雪の桟橋
+    ctx.fillStyle='rgba(210,235,255,.28)';ctx.fillRect(0,y,W,H-y);
+    ctx.fillStyle='#f4fbff';ctx.beginPath();ctx.moveTo(0,y+6*S);for(let x=0;x<=W+20;x+=18)ctx.lineTo(x,y+6*S+Math.abs(Math.sin(x*.07))*9*S);ctx.lineTo(W,y-2*S);ctx.lineTo(0,y-2*S);ctx.fill();
+    for(const px of [W*.1,W*.36,W*.64,W*.9]){ctx.beginPath();ctx.ellipse(px,y-18*S,12*S,6*S,0,0,7);ctx.fill();}
+    for(const[px,py,r]of[[W*.25,y+(H-y)*.35,40],[W*.7,y+(H-y)*.65,55],[W*.45,y+(H-y)*.85,30]]){ctx.beginPath();ctx.ellipse(px,py,r*S,9*S,0,0,7);ctx.fill();}
+  }else if(deco==='ruins'){ // つたの桟橋
+    ctx.strokeStyle='#2f7a3a';ctx.lineWidth=3*S;ctx.lineCap='round';
+    for(let i=0;i<2;i++){ctx.beginPath();const yy=y+(8+i*22)*S;ctx.moveTo(-10,yy);for(let x=0;x<=W+40;x+=40*S)ctx.quadraticCurveTo(x+20*S,yy+(i?-10:12)*S,x+40*S,yy);ctx.stroke();}
+    ctx.fillStyle='#3f9a48';for(let x=10*S;x<W;x+=34*S){ctx.beginPath();ctx.ellipse(x,y+12*S+Math.sin(x)*6*S,6*S,3*S,.6,0,7);ctx.fill();}
+    for(const px of [W*.1,W*.36,W*.64,W*.9]){ctx.strokeStyle='#2f7a3a';ctx.lineWidth=2.5*S;ctx.beginPath();ctx.moveTo(px-10*S,y-14*S);ctx.quadraticCurveTo(px,y-4*S,px+10*S,y-12*S);ctx.stroke();}
+  }
 }
 const KELP=Array.from({length:10},(_,i)=>({side:i%2,off:(i>>1)*15+rnd(-4,4),h:rnd(90,170),ph:Math.random()*6,c:Math.random()<.5?'#145c3a':'#1d7a4a'}));
 function drawKelp(){
+  const deco=g?STAGES[g.stage].deco:'coral';
+  if(deco==='ice'){ // つらら
+    for(const k of KELP){const bx=k.side?W-(10+k.off)*S:(10+k.off)*S,by=PIER+4*S,h=k.h*S*.9,w=(9+k.off%6)*S;
+      const gr=ctx.createLinearGradient(bx-w,0,bx+w,0);gr.addColorStop(0,'rgba(220,245,255,.9)');gr.addColorStop(.5,'rgba(255,255,255,.95)');gr.addColorStop(1,'rgba(160,215,240,.85)');
+      ctx.fillStyle=gr;ctx.beginPath();ctx.moveTo(bx-w,by);ctx.lineTo(bx,by-h);ctx.lineTo(bx+w,by);ctx.fill();}
+    return;}
   for(const k of KELP){const bx=k.side?W-(8+k.off)*S:(8+k.off)*S,by=PIER+4*S,h=k.h*S,sw=Math.sin(time*1.2+k.ph)*14*S;
-    const gr=ctx.createLinearGradient(0,by,0,by-h);gr.addColorStop(0,'rgba(8,40,30,.95)');gr.addColorStop(1,k.c);ctx.fillStyle=gr;
-    ctx.beginPath();ctx.moveTo(bx-6*S,by);ctx.quadraticCurveTo(bx-6*S+sw*.5,by-h*.5,bx+sw,by-h);ctx.quadraticCurveTo(bx+6*S+sw*.5,by-h*.5,bx+6*S,by);ctx.fill();}
+    const c=deco==='deep'?'#123a44':deco==='ruins'?'#2b8a4a':k.c;
+    const gr=ctx.createLinearGradient(0,by,0,by-h);gr.addColorStop(0,'rgba(8,40,30,.95)');gr.addColorStop(1,c);ctx.fillStyle=gr;
+    ctx.beginPath();ctx.moveTo(bx-6*S,by);ctx.quadraticCurveTo(bx-6*S+sw*.5,by-h*.5,bx+sw,by-h);ctx.quadraticCurveTo(bx+6*S+sw*.5,by-h*.5,bx+6*S,by);ctx.fill();
+    if(deco==='deep'){const gx=bx+sw,gy=by-h,r=(6+Math.sin(time*3+k.ph)*2)*S,gg=ctx.createRadialGradient(gx,gy,0,gx,gy,r*2.5);gg.addColorStop(0,'rgba(140,255,230,.9)');gg.addColorStop(1,'rgba(140,255,230,0)');ctx.fillStyle=gg;ctx.beginPath();ctx.arc(gx,gy,r*2.5,0,7);ctx.fill();}}
 }
 const tipPos=()=>({x:W/2,y:PIER-36*S});
 function drawRod(bend,aimX){
@@ -419,7 +512,7 @@ function caught(c){
   if(d.gim==='time'){g.feverT=FEVER_LEN;extra='フィーバータイム スタート！';}
   if(d.gim==='treasure')extra='たからもの ゲット！';
   if(d.gim==='crab')extra='大ボーナス！！';
-  if(d.cls==='legend'){extra='海の主を つりあげた！';g.bossGot=true;}
+  if(d.cls==='legend'){extra='海の主を つりあげた！';g.bossGot=true;g.lastBoss=d.id;g.bossCount=(g.bossCount||0)+1;}
   spray(c.x,c.y,26);ring(c.x,c.y,40*S,1);ring(c.x,c.y,20*S,1);SFX.splash();vib(60);
   const tier=d.cls==='legend'?3:d.cls==='monster'?2:(d.cls==='rare'||d.gim==='crab'||d.gim==='treasure')?1:0;
   const roul=tier>=1||Math.random()<.18;
@@ -460,14 +553,14 @@ function update(dt){
   if(g.sub!=='card'&&g.sub!=='broke'){
     g.feverT=Math.max(0,g.feverT-dt);
     const before=g.stT;if(g.sub!=='fight')g.stT=Math.max(0,g.stT-dt);
-    const spawnBoss=()=>{const pool=STAGES[g.stage].bosses,id=pool[Math.random()*pool.length|0];g.fish.push(makeFish(false,BYID[id]));};
+    const spawnBoss=()=>{const pool=STAGES[g.stage].bosses.filter(i=>i!==g.lastBoss);const L=pool.length?pool:STAGES[g.stage].bosses,id=L[Math.random()*L.length|0];g.fish.push(makeFish(false,BYID[id]));};
     if(before>BOSS_AT&&g.stT<=BOSS_AT&&!g.bossOut){
       spawnBoss();g.bossOut=true;g.warnT=2.8;SFX.warn();g.bossFlash=1.4;vib([200,100,200]);
       if(rodOf(save.rod).aff.XL<.5)g.bossTip=4;
     }
     // にげられても ボスタイム中なら もどってくる
-    if(g.bossOut&&!g.bossGot&&g.stT>8&&!g.fish.some(f=>f.d.cls==='legend'&&!f.leaving&&f.mode!=='flee')){
-      g.bossAway+=dt;if(g.bossAway>=BOSS_RETURN){g.bossAway=0;spawnBoss();msg('ボスが もどってきた！',COL.coral,true);SFX.warn();g.bossFlash=.8;}
+    if(g.bossOut&&g.stT>(g.bossGot?20:8)&&!g.fish.some(f=>f.d.cls==='legend'&&!f.leaving&&f.mode!=='flee')){
+      g.bossAway+=dt;if(g.bossAway>=(g.bossGot?BOSS_NEXT:BOSS_RETURN)){g.bossAway=0;spawnBoss();msg(g.bossGot?'つぎの ボスが きた！':'ボスが もどってきた！',COL.coral,true);SFX.warn();g.bossFlash=.8;vib([150,80,150]);g.bossGot=false;}
     }else g.bossAway=0;
     if(g.stT<=0&&['ready','cast','wait'].includes(g.sub)){if(g.lure&&g.sub!=='ready'){g.lure=null;g.sub='ready';}nextStage();}
   }
