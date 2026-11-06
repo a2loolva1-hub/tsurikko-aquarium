@@ -177,20 +177,697 @@ const RAW=[
  ['goldryugu','黄金のリュウグウノツカイ','legend',0,'L',[500,1000],'全身が金色にかがやく、まぼろしのリュウグウノツカイ。',{rage:'黄金の かがやき！'}],
  ['crab','ゴールド・ゴールデン・クラブ','gimmick',0,'L',[20,50],'コインをせおった金ピカのカニ。めったに出ない大ボーナス！',{gim:'crab',pw:3,pts:10000,size:110,depth:[1,1],w:.6,wf:2,speed:.5,tag:'大ボーナス'}],
 ];
+// ================= リアルな海の生きもの（プログラムで描く） =================
+const ART_INK='#1d2433';
+function artHash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
+function artRng(seed){let a=seed||1;return()=>{a^=a<<13;a^=a>>>17;a^=a<<5;return((a>>>0)%10000)/10000;};}
+const FISH_SHAPES={
+  tuna:{hr:.34,nose:.7,tail:'lunate',dorsal:'tri',finlets:1},
+  mack:{hr:.26,nose:.6,tail:'fork',dorsal:'low',finlets:1},
+  sard:{hr:.25,nose:.4,tail:'fork',dorsal:'low',eye:13},
+  tai:{hr:.52,nose:.35,tail:'fork',dorsal:'spiny'},
+  deep:{hr:.78,nose:.3,tail:'square',dorsal:'high',eye:12},
+  grp:{hr:.42,nose:.3,tail:'round',dorsal:'spiny',mouth:'big'},
+  goby:{hr:.28,nose:.1,tail:'round',dorsal:'two',eyeTop:1},
+  needle:{hr:.12,nose:.9,tail:'fork',dorsal:'low',beak:1},
+  flat:{hr:.58,nose:.2,tail:'round',dorsal:'fringe',eyeTop:2},
+  box:{hr:.55,nose:.1,tail:'round',dorsal:'tiny',boxy:1},
+  angler:{hr:.6,nose:0,tail:'round',dorsal:'lure',mouth:'huge'},
+  sword:{hr:.26,nose:.8,tail:'lunate',dorsal:'tri',sword:1},
+  sail:{hr:.24,nose:.8,tail:'lunate',dorsal:'sail',sword:1},
+  lion:{hr:.45,nose:.3,tail:'round',dorsal:'spikes',fans:1},
+  barra:{hr:.2,nose:.8,tail:'fork',dorsal:'two',mouth:'teeth'},
+  carp:{hr:.36,nose:.3,tail:'fork',dorsal:'low'},
+  scorp:{hr:.42,nose:.3,tail:'round',dorsal:'spiny',mouth:'big',spiky:1},
+  wrasse:{hr:.34,nose:.3,tail:'round',dorsal:'long'},
+  surgeon:{hr:.6,nose:.25,tail:'lunate',dorsal:'long'},
+  long:{hr:.3,nose:.4,tail:'pin',dorsal:'long',eye:9},
+  coel:{hr:.38,nose:.3,tail:'coel',dorsal:'lobed'},
+  hatchet:{hr:.7,nose:.2,tail:'fork',dorsal:'low',eye:22,glow:1},
+  viper:{hr:.24,nose:.2,tail:'fork',dorsal:'low',mouth:'fang',eye:10,glow:1},
+  shark:{shark:1,hr:.3,nose:.9},
+  hammer:{shark:1,hr:.28,nose:.9,hammer:1},
+  whaleshark:{shark:1,hr:.34,nose:.1,wide:1},
+  frill:{shark:1,hr:.18,nose:.2,eel:1},
+  goblin:{shark:1,hr:.3,nose:.9,goblin:1},
+  megamouth:{shark:1,hr:.38,nose:.05,mega:1},
+};
+function artBodyPath(x,hh,nose){
+  x.beginPath();x.moveTo(-130,0);
+  x.bezierCurveTo(-128,-hh*(1-nose*.75),-60,-hh,10,-hh*.97);x.bezierCurveTo(65,-hh*.9,92,-hh*.38,98,-hh*.2);
+  x.lineTo(98,hh*.2);x.bezierCurveTo(92,hh*.38,65,hh*.9,10,hh*.97);x.bezierCurveTo(-60,hh,-128,hh*(1-nose*.75),-130,0);x.closePath();
+}
+function artEye(x,ex,ey,r,glow){
+  if(glow){x.save();x.shadowColor='#9ff';x.shadowBlur=14;}
+  x.fillStyle='#fff';x.beginPath();x.arc(ex,ey,r,0,7);x.fill();x.restore&&glow&&x.restore();
+  x.lineWidth=3;x.strokeStyle=ART_INK;x.beginPath();x.arc(ex,ey,r,0,7);x.stroke();
+  x.fillStyle='#111';x.beginPath();x.arc(ex-r*.15,ey,r*.6,0,7);x.fill();
+  x.fillStyle='#fff';x.beginPath();x.arc(ex-r*.35,ey-r*.3,r*.22,0,7);x.fill();
+}
+function artPattern(x,pat,c,box,rng){
+  const[bx0,by0,bx1,by1]=box,pad=60,off=document.createElement('canvas');off.width=Math.ceil(bx1-bx0+pad*2);off.height=Math.ceil(by1-by0+pad*2);
+  const o=off.getContext('2d');o.translate(-bx0+pad,-by0+pad);artPatternRaw(o,pat,c,box,rng);
+  const pt=x.createPattern(off,'no-repeat');pt.setTransform(new DOMMatrix().translate(bx0-pad,by0-pad));x.fillStyle=pt;x.fill();
+}
+function artPatternRaw(x,pat,c,box,rng){
+  const[x0,y0,x1,y1]=box,w=x1-x0,h=y1-y0;
+  const g=x.createLinearGradient(0,y0,0,y1);g.addColorStop(0,c[0]);g.addColorStop(.55,c[0]);g.addColorStop(1,c[1]);x.fillStyle=g;x.fillRect(x0-50,y0-50,w+100,h+100);
+  x.fillStyle=c[2];x.strokeStyle=c[2];
+  if(pat==='vs'){const n=4+(rng()*3|0);for(let i=0;i<n;i++){const px=x0+w*(i+.6)/(n+.4);x.fillRect(px-w*.035,y0-20,w*.07,h+40);}}
+  else if(pat==='vs2'){for(let i=0;i<3;i++){const px=x0+w*(.2+i*.28);x.fillRect(px-w*.07,y0-20,w*.14,h+40);}}
+  else if(pat==='hs'){const n=3+(rng()*3|0);for(let i=0;i<n;i++){const py=y0+h*(i+.7)/(n+.6);x.fillRect(x0-20,py-h*.04,w+40,h*.08);}}
+  else if(pat==='sp'||pat==='ws'){if(pat==='ws')x.fillStyle='#fff';for(let i=0;i<34;i++){x.beginPath();x.arc(x0+rng()*w,y0+rng()*h,4+rng()*7,0,7);x.fill();}}
+  else if(pat==='dot'){for(let i=0;i<60;i++){x.beginPath();x.arc(x0+rng()*w,y0+rng()*h*.6,2.5+rng()*2.5,0,7);x.fill();}}
+  else if(pat==='band'){x.lineWidth=4;for(const fx of[.18,.5,.8]){const px=x0+w*fx;x.fillStyle='#fff';x.beginPath();x.ellipse(px,(y0+y1)/2,w*.06,h*.6,0,0,7);x.fill();x.strokeStyle=ART_INK;x.stroke();}}
+  else if(pat==='eye'){x.beginPath();x.arc(x0+w*.78,y0+h*.4,h*.13,0,7);x.fill();x.strokeStyle='#fff';x.lineWidth=4;x.stroke();}
+  else if(pat==='mot'){for(let i=0;i<16;i++){x.globalAlpha=.55;x.beginPath();x.ellipse(x0+rng()*w,y0+rng()*h,10+rng()*18,7+rng()*12,rng()*3,0,7);x.fill();}x.globalAlpha=1;}
+  else if(pat==='half'){x.beginPath();x.moveTo(x0+w*.55,y0-20);x.lineTo(x1+40,y0-20);x.lineTo(x1+40,y1+20);x.lineTo(x0+w*.4,y1+20);x.closePath();x.fill();}
+  else if(pat==='line'){x.fillRect(x0-20,(y0+y1)/2-h*.07,w+40,h*.14);}
+  else if(pat==='wavy'){x.lineWidth=4;for(let i=0;i<7;i++){x.beginPath();const sx=x0+w*(.1+i*.12);x.moveTo(sx,y0);x.quadraticCurveTo(sx+18,y0+h*.2,sx,y0+h*.42);x.stroke();}}
+  else if(pat==='scale'){x.globalAlpha=.35;x.lineWidth=2;for(let yy=y0;yy<y1;yy+=14)for(let xx=x0+((yy/14)%2)*8;xx<x1;xx+=16){x.beginPath();x.arc(xx,yy,8,0,Math.PI);x.stroke();}x.globalAlpha=1;}
+  else if(pat==='diag'){x.lineWidth=7;for(let i=-6;i<12;i++){x.beginPath();x.moveTo(x0+i*26,y0-10);x.lineTo(x0+i*26+h,y1+10);x.stroke();}}
+  else if(pat==='glow'){for(let i=0;i<9;i++){x.save();x.shadowColor=c[2];x.shadowBlur=10;x.beginPath();x.arc(x0+w*(.15+i*.09),y1-h*.18,3.5,0,7);x.fill();x.restore();}}
+}
+function artFish(x,a,rng){
+  const sh=FISH_SHAPES[a.shape]||FISH_SHAPES.carp,hh=sh.hr*120,c=a.c,fin=c[3]||c[0];
+  x.lineJoin='round';x.lineCap='round';
+  const out=()=>{x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();};
+  // しっぽ
+  x.fillStyle=fin;x.beginPath();
+  if(sh.tail==='fork'){x.moveTo(90,0);x.lineTo(150,-hh-14);x.quadraticCurveTo(128,0,150,hh+14);x.closePath();}
+  else if(sh.tail==='lunate'){x.moveTo(92,0);x.quadraticCurveTo(118,-hh*.5,152,-hh-30);x.quadraticCurveTo(128,0,152,hh+30);x.quadraticCurveTo(118,hh*.5,92,0);}
+  else if(sh.tail==='round'){x.ellipse(116,0,30,hh*.82+8,0,0,7);}
+  else if(sh.tail==='square'){x.moveTo(90,-hh*.3);x.lineTo(140,-hh*.7);x.lineTo(140,hh*.7);x.lineTo(90,hh*.3);x.closePath();}
+  else if(sh.tail==='coel'){x.moveTo(90,-hh*.5);x.quadraticCurveTo(150,-hh*.9,160,0);x.quadraticCurveTo(150,hh*.9,90,hh*.5);x.closePath();}
+  else{x.moveTo(90,-8);x.lineTo(150,0);x.lineTo(90,8);x.closePath();}
+  x.fill();out();
+  // せびれ・しりびれ
+  x.fillStyle=fin;x.beginPath();
+  const d=sh.dorsal,top=-hh*.92;
+  if(d==='tri'){x.moveTo(-20,top);x.lineTo(5,top-48);x.lineTo(30,top+4);}
+  else if(d==='low'){x.moveTo(-20,top);x.quadraticCurveTo(10,top-26,40,top+6);}
+  else if(d==='spiny'||d==='spikes'){const n=d==='spikes'?9:7,L=d==='spikes'?70:34;x.moveTo(-60,top+6);for(let i=0;i<=n;i++){const px=-60+i*(110/n);x.lineTo(px+6,top-L*(i%2?.55:1));x.lineTo(px+12,top+2);}x.lineTo(60,top+10);}
+  else if(d==='high'){x.moveTo(-50,top+4);x.quadraticCurveTo(-10,top-70,60,top-10);x.lineTo(80,-hh*.5);}
+  else if(d==='sail'){x.moveTo(-90,top+6);x.quadraticCurveTo(-40,top-140,40,top-60);x.lineTo(60,top+6);}
+  else if(d==='long'||d==='fringe'){x.moveTo(-90,top+6);x.quadraticCurveTo(0,top-(d==='fringe'?18:30),88,-hh*.35);x.lineTo(80,-hh*.2);}
+  else if(d==='two'){x.moveTo(-50,top+2);x.quadraticCurveTo(-30,top-30,-10,top+4);x.moveTo(10,top+4);x.quadraticCurveTo(35,top-26,60,top+6);}
+  else if(d==='lobed'){x.ellipse(10,top-14,22,18,0,0,7);}
+  else if(d==='lure'){}
+  else if(d==='tiny'){x.moveTo(30,top+4);x.lineTo(45,top-14);x.lineTo(60,top+6);}
+  x.fill();out();
+  if(d==='lure'){x.strokeStyle=ART_INK;x.lineWidth=4;x.beginPath();x.moveTo(-80,-hh*.8);x.quadraticCurveTo(-110,-hh-60,-150,-hh-20);x.stroke();x.save();x.shadowColor='#ffef7a';x.shadowBlur=18;x.fillStyle='#fff6a0';x.beginPath();x.arc(-152,-hh-16,10,0,7);x.fill();x.restore();}
+  x.fillStyle=fin;x.beginPath();
+  if(d==='fringe'){x.moveTo(-90,hh*.92);x.quadraticCurveTo(0,hh+18,88,hh*.35);x.lineTo(80,hh*.2);}
+  else{x.moveTo(20,hh*.9);x.quadraticCurveTo(40,hh+(d==='sail'?20:28),70,hh*.62);}
+  x.fill();out();
+  if(sh.finlets){x.fillStyle=c[2]&&a.pat==='p'?'#ffd84a':'#ffd84a';for(let i=0;i<5;i++){const px=50+i*9;x.beginPath();x.moveTo(px,-hh*.6+i*4);x.lineTo(px+6,-hh*.75+i*4);x.lineTo(px+8,-hh*.52+i*4);x.fill();x.beginPath();x.moveTo(px,hh*.6-i*4);x.lineTo(px+6,hh*.75-i*4);x.lineTo(px+8,hh*.52-i*4);x.fill();}}
+  // くちばし（ダツ・カジキ）
+  if(sh.beak||sh.sword){x.fillStyle=sh.sword?c[0]:fin;x.beginPath();x.moveTo(-122,-6);x.lineTo(sh.sword?-235:-205,0);x.lineTo(-122,8);x.closePath();x.fill();out();}
+  // からだ
+  artBodyPath(x,hh,sh.nose);x.save();x.clip();artPattern(x,a.pat,c,[-130,-hh,100,hh],rng);
+  if(sh.boxy){x.globalAlpha=.25;x.strokeStyle='#fff';x.lineWidth=3;for(let i=-120;i<100;i+=26){x.beginPath();x.moveTo(i,-hh);x.lineTo(i+20,hh);x.stroke();x.beginPath();x.moveTo(i+20,-hh);x.lineTo(i,hh);x.stroke();}x.globalAlpha=1;}
+  x.restore();artBodyPath(x,hh,sh.nose);out();
+  // むなびれ
+  x.fillStyle=fin;x.globalAlpha=.9;x.beginPath();
+  if(sh.fans){for(let i=0;i<5;i++){x.moveTo(-60,hh*.1);x.lineTo(-10+i*12,hh*.5+50-i*4);}x.globalAlpha=1;x.lineWidth=5;x.strokeStyle=fin;x.stroke();x.lineWidth=2;x.strokeStyle=ART_INK;x.stroke();}
+  else{x.ellipse(-48,hh*.2,24,10,.5,0,7);x.fill();x.globalAlpha=1;x.lineWidth=3;x.strokeStyle=ART_INK;x.stroke();}
+  x.globalAlpha=1;
+  // えら
+  x.strokeStyle='rgba(29,36,51,.55)';x.lineWidth=3;x.beginPath();x.arc(-150+(sh.nose*10),0,hh*.7+20,-.55,.55);x.stroke();
+  if(sh.spiky){x.fillStyle=fin;for(let i=0;i<4;i++){x.beginPath();x.moveTo(-110+i*10,-hh*.5);x.lineTo(-104+i*10,-hh*.5-14);x.lineTo(-98+i*10,-hh*.48);x.fill();}}
+  // くち
+  x.strokeStyle=ART_INK;x.lineWidth=4;x.beginPath();
+  if(sh.mouth==='big'||sh.mouth==='huge'){x.moveTo(-130,0);x.quadraticCurveTo(-110,hh*(sh.mouth==='huge'?.55:.3),-85,hh*.1);x.stroke();
+    if(sh.mouth==='huge'){x.fillStyle='#fff';for(let i=0;i<6;i++){x.beginPath();x.moveTo(-126+i*7,4+i*3);x.lineTo(-122+i*7,16+i*3);x.lineTo(-118+i*7,6+i*3);x.fill();}}}
+  else if(sh.mouth==='fang'||sh.mouth==='teeth'){x.moveTo(-130,0);x.lineTo(-95,8);x.stroke();x.fillStyle='#fff';for(let i=0;i<(sh.mouth==='fang'?3:5);i++){x.beginPath();x.moveTo(-126+i*8,2);x.lineTo(-123+i*8,sh.mouth==='fang'?24:10);x.lineTo(-120+i*8,3);x.fill();x.stroke();}}
+  else{x.moveTo(-128,2);x.lineTo(-114,4);x.stroke();}
+  // め
+  const er=sh.eye||11;
+  if(sh.eyeTop===2){artEye(x,-92,-hh*.55,er,0);artEye(x,-70,-hh*.62,er,0);}
+  else if(sh.eyeTop){artEye(x,-100,-hh*.55,er+2,0);}
+  else artEye(x,-98,-hh*.22,er,sh.glow);
+}
+function artShark(x,a,rng){
+  const sh=FISH_SHAPES[a.shape],hh=sh.hr*120,c=a.c,out=()=>{x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();};
+  x.lineJoin='round';
+  if(sh.eel){ // ラブカ
+    x.fillStyle=c[0];x.beginPath();x.moveTo(-140,-hh*.6);x.quadraticCurveTo(0,-hh*1.1,150,-6);x.lineTo(150,6);x.quadraticCurveTo(0,hh*1.1,-140,hh*.6);x.quadraticCurveTo(-160,0,-140,-hh*.6);x.fill();out();
+    x.strokeStyle='#fff';x.lineWidth=2;for(let i=0;i<6;i++){x.beginPath();x.moveTo(-110+i*7,-hh*.4);x.quadraticCurveTo(-104+i*7,0,-110+i*7,hh*.4);x.stroke();}
+    artEye(x,-128,-hh*.25,9,0);return;}
+  // しっぽ（上が長い）
+  x.fillStyle=c[0];x.beginPath();x.moveTo(80,-hh*.3);x.lineTo(sh.mega?150:165,-hh-40);x.quadraticCurveTo(130,-hh*.2,140,hh*.6+8);x.lineTo(80,hh*.3);x.closePath();x.fill();out();
+  // せびれ
+  x.beginPath();x.moveTo(-30,-hh*.9);x.quadraticCurveTo(-10,-hh-62,25,-hh-56);x.quadraticCurveTo(15,-hh*.7,30,-hh*.85);x.closePath();x.fill();out();
+  x.beginPath();x.moveTo(55,-hh*.6);x.lineTo(68,-hh*.6-20);x.lineTo(75,-hh*.55);x.fill();out();
+  // からだ
+  x.beginPath();
+  if(sh.wide||sh.mega){x.moveTo(-135,-hh*.3);x.quadraticCurveTo(-100,-hh*1.05,10,-hh);x.quadraticCurveTo(70,-hh*.8,95,-hh*.3);x.lineTo(95,hh*.3);x.quadraticCurveTo(60,hh*.9,0,hh);x.quadraticCurveTo(-110,hh*1.05,-135,hh*.3);x.closePath();}
+  else{x.moveTo(-150,0);x.quadraticCurveTo(-110,-hh*1.05,0,-hh);x.quadraticCurveTo(70,-hh*.8,95,-hh*.3);x.lineTo(95,hh*.3);x.quadraticCurveTo(60,hh*.8,0,hh*.95);x.quadraticCurveTo(-110,hh*.9,-150,0);}
+  x.save();x.clip();artPattern(x,a.pat,c,[-150,-hh,100,hh],rng);x.restore();out();
+  if(sh.goblin){x.fillStyle=c[0];x.beginPath();x.moveTo(-140,-hh*.4);x.lineTo(-215,-hh*.1);x.lineTo(-140,-hh*.05);x.closePath();x.fill();out();}
+  if(sh.hammer){x.fillStyle=c[0];x.beginPath();x.ellipse(-150,0,18,hh+34,0,0,7);x.fill();out();}
+  // むなびれ
+  x.fillStyle=c[0];x.beginPath();x.moveTo(-60,hh*.6);x.quadraticCurveTo(-20,hh+60,10,hh+52);x.quadraticCurveTo(-10,hh*.8,-10,hh*.6);x.closePath();x.fill();out();
+  // えら
+  x.strokeStyle='rgba(29,36,51,.7)';x.lineWidth=3;for(let i=0;i<(sh.wide?4:5);i++){x.beginPath();x.moveTo(-95+i*8,-hh*.35);x.quadraticCurveTo(-90+i*8,0,-95+i*8,hh*.35);x.stroke();}
+  // くち・め
+  x.strokeStyle=ART_INK;x.lineWidth=4;x.beginPath();
+  if(sh.mega||sh.wide){x.moveTo(-134,hh*.05);x.lineTo(-95,hh*.12);x.stroke();if(sh.mega){x.fillStyle='#f4b6c2';x.beginPath();x.ellipse(-118,hh*.1,18,6,0,0,7);x.fill();}}
+  else{x.moveTo(-130,hh*.25);x.quadraticCurveTo(-112,hh*.45,-92,hh*.3);x.stroke();x.fillStyle='#fff';for(let i=0;i<5;i++){x.beginPath();x.moveTo(-126+i*7,hh*.3);x.lineTo(-123+i*7,hh*.42);x.lineTo(-120+i*7,hh*.32);x.fill();}}
+  if(sh.hammer)artEye(x,-150,-hh-26,8,0);else artEye(x,-118,-hh*.32,8,0);
+}
+function artEel(x,a,rng){
+  const c=a.c,th=a.thick||34;const pts=[];for(let i=0;i<=40;i++){const t=i/40;pts.push([-140+t*290,Math.sin(t*Math.PI*2.2)*26*(.3+t)]);}
+  const path=()=>{x.beginPath();pts.forEach(([px,py],i)=>i?x.lineTo(px,py):x.moveTo(px,py));};
+  x.lineCap='round';x.lineJoin='round';
+  path();x.lineWidth=th+10;x.strokeStyle=ART_INK;x.stroke();path();x.lineWidth=th;x.strokeStyle=c[0];x.stroke();
+  // ひれ（せなか）
+  x.save();path();x.lineWidth=th*.35;x.strokeStyle=c[1];x.translate(0,th*.18);x.stroke();x.restore();
+  if(a.pat!=='p'){const r=artRng(7);for(let i=2;i<38;i+=2){const[px,py]=pts[i];x.fillStyle=a.pat==='ws'?'#fff':c[2];if(a.pat==='vs'){x.fillRect(px-3,py-th/2+2,6,th-4);}else{x.beginPath();x.arc(px+(r()-.5)*8,py+(r()-.5)*th*.5,3+r()*4,0,7);x.fill();}}}
+  x.fillStyle=c[0];x.beginPath();x.ellipse(-140,0,30,th*.62,0,0,7);x.fill();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  x.beginPath();x.moveTo(-170,4);x.lineTo(-138,10);x.stroke();artEye(x,-150,-th*.18,8,0);
+}
+function artPuffer(x,a,rng){
+  const c=a.c,R=a.R||88;
+  x.fillStyle=c[3]||c[0];x.beginPath();x.moveTo(R*.8,0);x.lineTo(R+44,-26);x.lineTo(R+44,26);x.closePath();x.fill();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  if(a.spikes){x.strokeStyle=ART_INK;x.lineWidth=3;for(let i=0;i<28;i++){const t=i/28*Math.PI*2;x.beginPath();x.moveTo(Math.cos(t)*R,Math.sin(t)*R*.9);x.lineTo(Math.cos(t)*(R+16),Math.sin(t)*(R*.9+16));x.stroke();}}
+  x.beginPath();x.ellipse(0,0,R,R*.9,0,0,7);x.save();x.clip();artPattern(x,a.pat,c,[-R,-R,R,R],rng);x.restore();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  x.fillStyle=c[3]||c[0];x.beginPath();x.ellipse(-10,R*.25,22,12,.6,0,7);x.fill();x.lineWidth=3;x.stroke();
+  artEye(x,-R*.45,-R*.25,14,0);x.fillStyle='#e8a090';x.beginPath();x.ellipse(-R*.95,R*.12,10,8,0,0,7);x.fill();x.lineWidth=3;x.stroke();
+}
+function artMola(x,a,rng){
+  const c=a.c;x.fillStyle=c[0];
+  x.beginPath();x.moveTo(20,-80);x.lineTo(40,-190);x.lineTo(70,-80);x.closePath();x.moveTo(20,80);x.lineTo(40,190);x.lineTo(70,80);x.closePath();x.fill();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  x.beginPath();x.moveTo(-120,0);x.quadraticCurveTo(-110,-110,20,-110);x.quadraticCurveTo(95,-100,100,0);x.quadraticCurveTo(95,100,20,110);x.quadraticCurveTo(-110,110,-120,0);
+  x.save();x.clip();artPattern(x,a.pat,c,[-120,-110,100,110],rng);x.restore();x.stroke();
+  x.beginPath();for(let i=0;i<7;i++){x.lineTo(100+(i%2?16:4),-90+i*30);}x.stroke();artEye(x,-85,-25,10,0);x.beginPath();x.arc(-118,8,5,0,7);x.stroke();
+}
+function artRay(x,a,rng){
+  const c=a.c;x.lineJoin='round';
+  x.strokeStyle=ART_INK;x.lineWidth=7;x.beginPath();x.moveTo(60,0);x.quadraticCurveTo(140,10,190,-10);x.stroke();x.strokeStyle=c[0];x.lineWidth=3;x.stroke();
+  x.beginPath();x.moveTo(-120,0);x.quadraticCurveTo(-60,-30,-10,-140);x.quadraticCurveTo(20,-40,70,0);x.quadraticCurveTo(20,40,-10,140);x.quadraticCurveTo(-60,30,-120,0);
+  if(a.manta){x.moveTo(-120,-18);x.lineTo(-150,-30);x.lineTo(-120,-4);x.moveTo(-120,18);x.lineTo(-150,30);x.lineTo(-120,4);}
+  x.save();x.clip();artPattern(x,a.pat,c,[-120,-140,70,140],rng);x.restore();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  artEye(x,-70,-18,8,0);artEye(x,-70,18,8,0);
+}
+function artSquid(x,a,rng){
+  const c=a.c;x.lineCap='round';x.lineJoin='round';
+  for(let i=0;i<8;i++){const y0=-24+i*7,len=90+(i%3)*12;x.strokeStyle=ART_INK;x.lineWidth=11;x.beginPath();x.moveTo(-60,y0);x.quadraticCurveTo(-110,y0+Math.sin(i)*20,-60-len,y0+(i-4)*9);x.stroke();x.strokeStyle=c[1];x.lineWidth=6;x.stroke();}
+  if(!a.cuttle){x.strokeStyle=ART_INK;x.lineWidth=6;x.beginPath();x.moveTo(-60,0);x.quadraticCurveTo(-150,-30,-210,-10);x.stroke();x.beginPath();x.moveTo(-60,4);x.quadraticCurveTo(-150,40,-212,22);x.stroke();}
+  x.fillStyle=c[0];x.beginPath();x.moveTo(140,0);x.lineTo(90,-60);x.lineTo(70,0);x.lineTo(90,60);x.closePath();if(a.cuttle){x.moveTo(-50,-38);x.quadraticCurveTo(40,-62,110,-38);x.lineTo(110,38);x.quadraticCurveTo(40,62,-50,38);x.closePath();}x.fill();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  x.beginPath();x.moveTo(-70,-30);x.quadraticCurveTo(20,-48,120,0);x.quadraticCurveTo(20,48,-70,30);x.closePath();x.save();x.clip();artPattern(x,a.pat,c,[-70,-48,120,48],rng);x.restore();x.stroke();
+  x.fillStyle=c[0];x.beginPath();x.ellipse(-62,0,20,28,0,0,7);x.fill();x.stroke();artEye(x,-62,-6,11,a.glow);
+}
+function artOcto(x,a,rng){
+  const c=a.c;x.lineCap='round';
+  for(let i=0;i<8;i++){const ang=Math.PI*(.12+i*.11),bx=Math.cos(ang)*40,by=30,ex=Math.cos(ang)*130,ey=90+Math.sin(i*1.7)*20;
+    x.strokeStyle=ART_INK;x.lineWidth=24;x.beginPath();x.moveTo(bx,by);x.quadraticCurveTo(ex*.8,ey*1.2,ex,ey);x.quadraticCurveTo(ex*1.08,ey-24,ex*.92,ey-30);x.stroke();
+    x.strokeStyle=c[0];x.lineWidth=16;x.stroke();x.fillStyle=c[1];x.beginPath();x.arc(ex*.85,ey*.95,4,0,7);x.fill();}
+  x.beginPath();x.ellipse(0,-40,a.dumbo?78:70,a.dumbo?72:85,0,0,7);x.save();x.clip();artPattern(x,a.pat,c,[-80,-125,80,45],rng);x.restore();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  if(a.dumbo){x.fillStyle=c[0];for(const s of[-1,1]){x.beginPath();x.ellipse(s*78,-80,26,16,s*.6,0,7);x.fill();x.stroke();}}
+  artEye(x,-26,-10,12,0);artEye(x,26,-10,12,0);
+  if(a.ring){x.strokeStyle='#2fa4ff';x.lineWidth=4;for(let i=0;i<10;i++){x.beginPath();x.arc(-55+rng()*110,-100+rng()*90,6,0,7);x.stroke();}}
+}
+function artCrab(x,a,rng){
+  const c=a.c,W2=a.wide||85;x.lineCap='round';x.strokeStyle=ART_INK;
+  for(const s of[-1,1])for(let i=0;i<(a.longleg?3:4);i++){const L=a.longleg?150:70;x.lineWidth=12;x.beginPath();x.moveTo(s*W2*.6,10+i*12);x.lineTo(s*(W2+L*.5),-10+i*20);x.lineTo(s*(W2+L*.8),50+i*16);x.stroke();x.strokeStyle=c[0];x.lineWidth=6;x.stroke();x.strokeStyle=ART_INK;}
+  for(const s of[-1,1]){x.lineWidth=14;x.beginPath();x.moveTo(s*W2*.5,-20);x.lineTo(s*(W2+10),-60);x.stroke();x.strokeStyle=c[0];x.lineWidth=8;x.stroke();x.strokeStyle=ART_INK;
+    x.fillStyle=c[2]||c[0];x.beginPath();x.ellipse(s*(W2+20),-82,a.bigclaw?38:26,a.bigclaw?26:18,s*.5,0,7);x.fill();x.lineWidth=5;x.stroke();x.beginPath();x.moveTo(s*(W2+30),-85);x.lineTo(s*(W2+48),-100);x.stroke();}
+  x.beginPath();x.ellipse(0,0,W2,W2*.72,0,0,7);x.save();x.clip();artPattern(x,a.pat,c,[-W2,-W2,W2,W2],rng);x.restore();x.lineWidth=5;x.stroke();
+  if(a.hair){x.lineWidth=2;for(let i=0;i<30;i++){const t=rng()*Math.PI*2;x.beginPath();x.moveTo(Math.cos(t)*W2,Math.sin(t)*W2*.72);x.lineTo(Math.cos(t)*(W2+8),Math.sin(t)*(W2*.72+8));x.stroke();}}
+  for(const s of[-1,1]){x.lineWidth=5;x.beginPath();x.moveTo(s*16,-W2*.6);x.lineTo(s*20,-W2*.85);x.stroke();artEye(x,s*20,-W2*.9,9,0);}
+}
+function artShrimp(x,a,rng){
+  const c=a.c;x.lineCap='round';x.lineJoin='round';x.strokeStyle=ART_INK;
+  // ひげ
+  x.lineWidth=3;x.beginPath();x.moveTo(-120,-14);x.quadraticCurveTo(-190,-90,-90,-160);x.moveTo(-122,-8);x.quadraticCurveTo(-230,-40,-240,-130);x.stroke();
+  if(a.spiny){for(const dy of[-16,-6]){x.lineWidth=13;x.strokeStyle=ART_INK;x.beginPath();x.moveTo(-118,dy);x.quadraticCurveTo(-190,dy-60,-170,dy-150);x.stroke();x.strokeStyle=c[0];x.lineWidth=7;x.stroke();}x.strokeStyle=ART_INK;}
+  // あし
+  for(let i=0;i<5;i++){x.lineWidth=4;x.beginPath();x.moveTo(-90+i*16,26);x.lineTo(-98+i*16,62);x.stroke();}
+  // はさみ
+  if(a.claw){for(const dy of[-6,22]){x.lineWidth=11;x.beginPath();x.moveTo(-100,dy);x.lineTo(-150,dy+18);x.stroke();x.strokeStyle=c[2]||c[0];x.lineWidth=6;x.stroke();x.strokeStyle=ART_INK;
+    x.fillStyle=c[2]||c[0];x.beginPath();x.ellipse(-180,dy+24,34,17,.25,0,7);x.fill();x.lineWidth=4;x.stroke();x.beginPath();x.moveTo(-200,dy+20);x.lineTo(-216,dy+8);x.stroke();}}
+  // しっぽの おうぎ
+  const T=[[150,104],[170,96]];x.fillStyle=c[0];x.beginPath();x.moveTo(132,84);x.lineTo(118,150);x.lineTo(150,140);x.lineTo(176,150);x.lineTo(168,84);x.closePath();x.fill();x.lineWidth=4;x.stroke();
+  // おなかの ふし（うしろから まえへ）
+  for(let i=5;i>=1;i--){const px=-30+i*30,py=i*i*3.2,r=40-i*3.5;x.save();x.translate(px,py);x.rotate(i*.2);
+    x.fillStyle=i%2?c[0]:(c[2]||c[0]);x.beginPath();x.ellipse(0,0,r*.72,r,0,0,7);x.fill();x.lineWidth=4;x.stroke();x.restore();}
+  // あたま
+  x.save();x.beginPath();x.ellipse(-70,0,58,38,0,0,7);artPattern(x,a.pat,c,[-128,-38,-12,38],rng);x.lineWidth=5;x.stroke();x.restore();
+  x.fillStyle=c[0];x.beginPath();x.moveTo(-122,-12);x.lineTo(-160,-24);x.lineTo(-122,0);x.closePath();x.fill();x.lineWidth=4;x.stroke();
+  artEye(x,-100,-22,9,0);
+}
+function artIso(x,a,rng){
+  const c=a.c;x.strokeStyle=ART_INK;x.lineCap='round';
+  for(let i=0;i<7;i++){x.lineWidth=6;x.beginPath();x.moveTo(-90+i*28,60);x.lineTo(-96+i*28,90);x.stroke();}
+  x.beginPath();x.ellipse(0,0,130,70,0,0,7);x.save();x.clip();artPattern(x,'p',c,[-130,-70,130,70],rng);x.strokeStyle='rgba(29,36,51,.6)';x.lineWidth=3;for(let i=-100;i<130;i+=26){x.beginPath();x.moveTo(i,-70);x.quadraticCurveTo(i-12,0,i,70);x.stroke();}x.restore();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  x.beginPath();x.moveTo(-125,-20);x.quadraticCurveTo(-180,-60,-190,-30);x.stroke();artEye(x,-100,-30,12,0);
+}
+function artJelly(x,a,rng){
+  const c=a.c;x.lineCap='round';
+  for(let i=0;i<(a.many?14:8);i++){const sx=-70+i*(140/((a.many?14:8)-1));x.strokeStyle=c[2]||c[0];x.lineWidth=a.many?3:6;x.globalAlpha=.85;x.beginPath();x.moveTo(sx,10);
+    for(let k=1;k<=6;k++)x.quadraticCurveTo(sx+(k%2?16:-16),10+k*(a.long?36:24)-12,sx,10+k*(a.long?36:24));x.stroke();}
+  x.globalAlpha=1;
+  if(a.arms){x.fillStyle=c[1];for(let i=0;i<4;i++){x.beginPath();x.ellipse(-30+i*20,40,10,40,0,0,7);x.fill();}}
+  x.beginPath();x.moveTo(-90,10);x.quadraticCurveTo(-90,-100,0,-100);x.quadraticCurveTo(90,-100,90,10);
+  for(let i=0;i<8;i++)x.quadraticCurveTo(90-i*22.5-11,22,90-(i+1)*22.5,10);
+  x.globalAlpha=.85;x.save();x.clip();artPattern(x,a.pat,c,[-90,-100,90,20],rng);x.restore();x.globalAlpha=1;x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  if(a.ring){x.strokeStyle=c[2];x.lineWidth=5;for(let i=0;i<4;i++){x.beginPath();x.arc(-36+i*24,-50,10,0,7);x.stroke();}}
+  x.fillStyle='rgba(255,255,255,.55)';x.beginPath();x.ellipse(-40,-60,18,10,-.5,0,7);x.fill();
+  if(a.face){artEye(x,-24,-40,7,0);artEye(x,24,-40,7,0);}
+}
+function artStar(x,a,rng){
+  const c=a.c,n=a.arms||5;x.beginPath();for(let i=0;i<n*2;i++){const r=i%2?40:110,t=-Math.PI/2+i*Math.PI/n;x.lineTo(Math.cos(t)*r,Math.sin(t)*r);}x.closePath();
+  x.lineJoin='round';x.save();x.clip();artPattern(x,a.pat,c,[-110,-110,110,110],rng);x.restore();x.lineWidth=8;x.strokeStyle=ART_INK;x.stroke();x.lineWidth=0;
+  if(a.spikes){x.fillStyle=c[2];for(let i=0;i<40;i++){const t=rng()*Math.PI*2,r=rng()*90;x.beginPath();x.arc(Math.cos(t)*r,Math.sin(t)*r*.9,3,0,7);x.fill();}}
+}
+function artUrchin(x,a,rng){
+  const c=a.c;x.strokeStyle=ART_INK;x.lineCap='round';
+  for(let i=0;i<46;i++){const t=i/46*Math.PI*2,L=a.long?150:95;x.lineWidth=7;x.beginPath();x.moveTo(Math.cos(t)*50,Math.sin(t)*50);x.lineTo(Math.cos(t)*L,Math.sin(t)*L);x.stroke();x.strokeStyle=c[2]||c[0];x.lineWidth=3;x.stroke();x.strokeStyle=ART_INK;}
+  x.beginPath();x.arc(0,0,62,0,7);x.save();x.clip();artPattern(x,a.pat,c,[-62,-62,62,62],rng);x.restore();x.lineWidth=5;x.stroke();
+}
+function artHorse(x,a,rng){
+  const c=a.c;x.lineJoin='round';x.beginPath();
+  x.moveTo(-30,-150);x.quadraticCurveTo(30,-160,40,-120);x.quadraticCurveTo(60,-60,30,-10);x.quadraticCurveTo(10,40,30,80);x.quadraticCurveTo(50,130,10,140);x.quadraticCurveTo(-30,140,-20,110);x.quadraticCurveTo(-10,100,0,115);
+  x.quadraticCurveTo(10,90,-10,60);x.quadraticCurveTo(-40,10,-20,-40);x.quadraticCurveTo(-10,-80,-40,-100);x.lineTo(-100,-110);x.lineTo(-100,-95);x.lineTo(-45,-118);x.closePath();
+  x.save();x.clip();artPattern(x,a.pat,c,[-100,-160,60,140],rng);x.restore();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  x.fillStyle=c[1];x.beginPath();x.moveTo(30,-30);x.lineTo(58,-20);x.lineTo(28,0);x.fill();x.stroke();artEye(x,-12,-122,9,0);
+  if(a.leafy){x.fillStyle='#8bc34a';for(const[px,py]of[[40,-130],[45,-60],[40,30],[-20,-60],[50,90]]){x.beginPath();x.ellipse(px+18,py,22,10,.4,0,7);x.fill();x.stroke();}}
+}
+function artTurtle(x,a,rng){
+  const c=a.c;x.fillStyle=c[1];x.lineWidth=5;x.strokeStyle=ART_INK;
+  for(const[px,py,r]of[[-70,-70,-.7],[-70,70,.7],[80,-55,-.4],[80,55,.4]]){x.beginPath();x.ellipse(px,py,a.leather?62:48,18,r,0,7);x.fill();x.stroke();}
+  x.beginPath();x.ellipse(-140,0,34,26,0,0,7);x.fill();x.stroke();artEye(x,-152,-8,8,0);
+  x.beginPath();x.ellipse(0,0,115,85,0,0,7);x.save();x.clip();artPattern(x,'p',c,[-115,-85,115,85],rng);
+  x.strokeStyle=c[2];x.lineWidth=4;if(a.leather){for(let i=-2;i<=2;i++){x.beginPath();x.moveTo(-110,i*28);x.quadraticCurveTo(0,i*34,115,i*20);x.stroke();}}
+  else for(let i=0;i<7;i++){const t=i/7*Math.PI*2;x.beginPath();x.moveTo(0,0);x.lineTo(Math.cos(t)*120,Math.sin(t)*90);x.stroke();x.beginPath();x.ellipse(0,0,50,38,0,0,7);x.stroke();}
+  x.restore();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+}
+function artMammal(x,a,rng){
+  const c=a.c,k=a.kind2||'dolphin';x.lineJoin='round';x.lineWidth=5;x.strokeStyle=ART_INK;
+  const H={dolphin:42,orca:52,whale:62,sperm:62,beluga:50,narwhal:46,seal:58,walrus:70,otter:44,dugong:52}[k]||48;
+  x.fillStyle=c[0];
+  if(k==='seal'||k==='walrus'||k==='otter'){ // ずんぐり
+    x.beginPath();x.moveTo(110,-10);x.lineTo(160,-40);x.lineTo(150,0);x.lineTo(160,40);x.closePath();x.fill();x.stroke();
+    x.beginPath();x.ellipse(0,0,130,H,0,0,7);x.save();x.clip();artPattern(x,a.pat,c,[-130,-H,130,H],rng);x.restore();x.stroke();
+    x.beginPath();x.ellipse(-40,H*.7,30,14,.6,0,7);x.fillStyle=c[0];x.fill();x.stroke();
+    artEye(x,-100,-H*.25,11,0);x.fillStyle=ART_INK;x.beginPath();x.arc(-128,-2,6,0,7);x.fill();
+    x.lineWidth=2;for(let i=0;i<3;i++){x.beginPath();x.moveTo(-120,6+i*4);x.lineTo(-150,2+i*8);x.stroke();}
+    if(k==='walrus'){x.fillStyle='#fff8e0';for(const s of[-8,8]){x.beginPath();x.moveTo(-118+s,12);x.lineTo(-112+s,80);x.lineTo(-104+s,12);x.fill();x.lineWidth=4;x.stroke();}}
+    if(k==='otter'){x.fillStyle='#c9a37a';x.beginPath();x.ellipse(-30,-10,22,16,0,0,7);x.fill();x.lineWidth=3;x.stroke();}
+    return;}
+  // おびれ（よこむき）
+  x.beginPath();x.moveTo(110,-6);x.quadraticCurveTo(140,-40,170,-36);x.quadraticCurveTo(150,0,170,36);x.quadraticCurveTo(140,40,110,6);x.closePath();x.fill();x.stroke();
+  if(k!=='sperm'&&k!=='beluga'&&k!=='narwhal'){x.beginPath();x.moveTo(-10,-H*.95);x.quadraticCurveTo(10,-H-(k==='orca'?70:30),30,-H-(k==='orca'?66:26));x.quadraticCurveTo(20,-H*.7,40,-H*.8);x.closePath();x.fill();x.stroke();}
+  x.beginPath();
+  if(k==='sperm'){x.moveTo(-150,-H);x.lineTo(-40,-H);x.quadraticCurveTo(80,-H*.8,115,0);x.quadraticCurveTo(80,H*.7,-40,H*.8);x.lineTo(-150,H*.5);x.closePath();}
+  else{const sn=k==='dolphin'?40:k==='beluga'?10:20;x.moveTo(-140-sn,H*.15);x.lineTo(-140,H*.05);x.quadraticCurveTo(-120,-H,0,-H);x.quadraticCurveTo(80,-H*.8,115,0);x.quadraticCurveTo(80,H*.8,0,H);x.quadraticCurveTo(-110,H,-140,H*.3);x.lineTo(-140-sn,H*.25);x.closePath();}
+  x.save();x.clip();artPattern(x,a.pat,c,[-180,-H,120,H],rng);
+  if(k==='orca'){x.fillStyle='#fff';x.beginPath();x.ellipse(-90,-H*.35,22,12,0,0,7);x.fill();}
+  if(k==='whale'){x.strokeStyle='rgba(29,36,51,.5)';x.lineWidth=3;for(let i=0;i<6;i++){x.beginPath();x.moveTo(-130,H*.4+i*7);x.lineTo(-30,H*.5+i*7);x.stroke();}}
+  x.restore();x.lineWidth=5;x.strokeStyle=ART_INK;x.stroke();
+  x.fillStyle=c[0];x.beginPath();x.ellipse(-40,H*.75,a.longfin?80:34,14,.5,0,7);x.fill();x.stroke();
+  if(k==='narwhal'){x.strokeStyle='#e9e0c8';x.lineWidth=7;x.beginPath();x.moveTo(-145,0);x.lineTo(-250,-30);x.stroke();x.strokeStyle=ART_INK;x.lineWidth=2;x.stroke();}
+  x.lineWidth=4;x.beginPath();x.moveTo(-150,H*.2);x.quadraticCurveTo(-110,H*.4,-80,H*.25);x.stroke();
+  artEye(x,k==='sperm'?-60:-100,k==='sperm'?H*.1:-H*.1,k==='whale'||k==='sperm'?8:10,0);
+}
+function artShell(x,a,rng){
+  const c=a.c,k=a.kind2;x.lineJoin='round';x.lineWidth=5;x.strokeStyle=ART_INK;
+  if(k==='scallop'||k==='clam'){x.beginPath();x.moveTo(0,90);x.lineTo(-30,80);x.lineTo(-40,100);x.lineTo(40,100);x.lineTo(30,80);x.closePath();x.fillStyle=c[1];x.fill();x.stroke();
+    x.beginPath();x.moveTo(0,90);for(let i=0;i<=12;i++){const t=Math.PI*(1.05+i/12*.9);x.quadraticCurveTo(Math.cos(t-.06)*140,Math.sin(t-.06)*140+90,Math.cos(t)*130,Math.sin(t)*130+90);}x.closePath();
+    x.save();x.clip();artPattern(x,a.pat,c,[-130,-40,130,90],rng);x.strokeStyle='rgba(29,36,51,.4)';x.lineWidth=4;for(let i=0;i<12;i++){const t=Math.PI*(1.08+i/12*.85);x.beginPath();x.moveTo(0,90);x.lineTo(Math.cos(t)*140,Math.sin(t)*140+90);x.stroke();}x.restore();x.stroke();return;}
+  if(k==='abalone'){x.beginPath();x.ellipse(0,0,130,90,0,0,7);x.save();x.clip();artPattern(x,a.pat,c,[-130,-90,130,90],rng);x.fillStyle='rgba(180,220,255,.5)';x.beginPath();x.ellipse(-20,10,70,40,0,0,7);x.fill();x.restore();x.stroke();for(let i=0;i<6;i++){x.beginPath();x.arc(-90+i*30,-50+i*4,6,0,7);x.stroke();}return;}
+  if(k==='naut'){x.strokeStyle=ART_INK;x.lineWidth=7;for(let i=0;i<10;i++){x.beginPath();x.moveTo(-90,10+i*3);x.quadraticCurveTo(-140,20+i*6,-170,10+i*10);x.stroke();}
+    x.beginPath();x.arc(10,0,110,0,7);x.save();x.clip();artPattern(x,'p',c,[-100,-110,120,110],rng);x.fillStyle=c[2];for(let i=0;i<9;i++){x.save();x.translate(10,0);x.rotate(-1.2+i*.32);x.fillRect(0,-110,24,70);x.restore();}x.restore();x.lineWidth=5;x.stroke();
+    x.beginPath();x.arc(10,0,40,0,7);x.stroke();artEye(x,-80,-10,10,0);return;}
+  if(k==='kabuto'){x.beginPath();x.moveTo(90,0);x.lineTo(230,-10);x.lineTo(90,10);x.fillStyle=c[0];x.fill();x.stroke();
+    x.beginPath();x.moveTo(-130,30);x.quadraticCurveTo(-120,-110,0,-110);x.quadraticCurveTo(110,-100,110,30);x.closePath();x.save();x.clip();artPattern(x,a.pat,c,[-130,-110,110,30],rng);x.restore();x.stroke();
+    x.beginPath();x.moveTo(-60,-60);x.lineTo(60,-60);x.stroke();artEye(x,-60,-40,8,0);artEye(x,60,-40,8,0);return;}
+  // まきがい（サザエ・ツブ）
+  x.beginPath();x.moveTo(-120,60);x.quadraticCurveTo(-130,-30,-40,-60);x.lineTo(40,-140);x.lineTo(90,-50);x.quadraticCurveTo(140,40,40,80);x.quadraticCurveTo(-60,110,-120,60);
+  x.save();x.clip();artPattern(x,a.pat,c,[-130,-140,140,110],rng);x.strokeStyle='rgba(29,36,51,.5)';x.lineWidth=4;for(let i=0;i<4;i++){x.beginPath();x.moveTo(-100+i*20,40-i*40);x.quadraticCurveTo(0,10-i*40,90,-20-i*30);x.stroke();}x.restore();x.stroke();
+  if(a.spikes){x.fillStyle=c[0];for(let i=0;i<6;i++){const px=-80+i*30,py=-30-i*14;x.beginPath();x.moveTo(px,py);x.lineTo(px-6,py-30);x.lineTo(px+12,py-4);x.fill();x.stroke();}}
+  x.fillStyle=c[1];x.beginPath();x.ellipse(-70,70,40,20,0,0,7);x.fill();x.stroke();
+}
+function artClione(x,a,rng){
+  const c=a.c;x.globalAlpha=.85;x.fillStyle=c[0];x.lineWidth=4;x.strokeStyle=ART_INK;
+  for(const s of[-1,1]){x.beginPath();x.ellipse(s*55,-10,48,22,s*-.4,0,7);x.fill();x.stroke();}
+  x.beginPath();x.moveTo(0,-110);x.quadraticCurveTo(40,-100,36,-40);x.quadraticCurveTo(30,60,0,110);x.quadraticCurveTo(-30,60,-36,-40);x.quadraticCurveTo(-40,-100,0,-110);x.fill();x.stroke();x.globalAlpha=1;
+  x.fillStyle=c[2];x.beginPath();x.ellipse(0,20,14,30,0,0,7);x.fill();x.fillStyle=c[2];x.beginPath();x.arc(0,-82,10,0,7);x.fill();
+}
+const ART_FN={fish:artFish,shark:artShark,eel:artEel,puffer:artPuffer,mola:artMola,ray:artRay,squid:artSquid,octo:artOcto,crab:artCrab,shrimp:artShrimp,iso:artIso,jelly:artJelly,star:artStar,urchin:artUrchin,horse:artHorse,turtle:artTurtle,mammal:artMammal,shell:artShell,clione:artClione};
+function renderArt(f){
+  const a=f.art,N=560,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d');
+  x.translate(N/2,N/2);const rng=artRng(artHash(f.id));
+  try{(ART_FN[a.kind]||artFish)(x,a,rng);}catch(e){}
+  // きりぬき
+  const d=x.getImageData(0,0,N,N).data;let x0=N,y0=N,x1=0,y1=0;
+  for(let j=0;j<N;j+=2)for(let i=0;i<N;i+=2){if(d[(j*N+i)*4+3]>10){if(i<x0)x0=i;if(i>x1)x1=i;if(j<y0)y0=j;if(j>y1)y1=j;}}
+  x0=Math.max(0,x0-6);y0=Math.max(0,y0-6);x1=Math.min(N-1,x1+6);y1=Math.min(N-1,y1+6);
+  const w=x1-x0+1,h=y1-y0+1,s=Math.min(1,300/Math.max(w,h)),o=document.createElement('canvas');o.width=Math.max(1,Math.round(w*s));o.height=Math.max(1,Math.round(h*s));
+  const ox=o.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(c,x0,y0,w,h,0,0,o.width,o.height);return o;
+}
+// ---- 生きもの リスト ----
+// id|なまえ|かたち|★|すむステージ|大きさcm|色(上,はら,もよう,ひれ)|もよう|ひとこと|魚影サイズ
+const REAL_TXT=`
+kumanomi|カクレクマノミ|fish:wrasse|1|0|6-10|#ff7a1a,#ff9a3a,#fff,#ff7a1a|band|イソギンチャクを おうちにして くらしている。
+hamakumanomi|ハマクマノミ|fish:wrasse|1|0|8-12|#e8501a,#f07a2a,#fff,#c84010|band|白い帯が 1本だけの クマノミ。
+nanyohagi|ナンヨウハギ|fish:surgeon|2|0|20-30|#1f5bff,#2f7bff,#111,#ffd21f|half|あざやかな 青と黄色の しっぽ。
+chocho|チョウチョウウオ|fish:deep|1|0|15-20|#ffe24a,#fff3a0,#222,#ffd21f|eye|ひらひら およぐ 黄色い 魚。
+tsunodashi|ツノダシ|fish:deep|2|0|15-22|#fff6d0,#fff,#111,#ffd21f|vs2|せびれが 長く のびている。
+hatatate|ハタタテダイ|fish:deep|1|0|15-20|#fff,#fff,#222,#ffd21f|vs2|せびれの 先が 旗みたいに のびる。
+kinchaku|キンチャクダイ|fish:deep|2|0|20-30|#ffc21a,#ffd84a,#2f5bff,#2f5bff|hs|黄色に 青い しまもよう。
+tatejima|タテジマキンチャクダイ|fish:deep|3|0|25-40|#1f3bff,#2f5bff,#ffd21f,#ffd21f|hs|大人になると もようが かわる。
+nishiki|ニシキヤッコ|fish:deep|3|0|20-25|#ffb21a,#ffd84a,#1f5bff,#ffb21a|vs|にしきのように はなやか。
+rurisuzume|ルリスズメダイ|fish:wrasse|1|0|5-8|#1fb6ff,#3fd0ff,#ffd21f,#1fb6ff|p|るり色に かがやく 小さな魚。
+debasuzume|デバスズメダイ|fish:wrasse|1|0|5-8|#7ff0e6,#b0fff6,#fff,#7ff0e6|p|サンゴの まわりに むれで くらす。
+sorasuzume|ソラスズメダイ|fish:wrasse|1|0|6-9|#1f7bff,#1f7bff,#ffd21f,#ffd21f|half|空色と 黄色の ツートン。
+kyusen|キュウセン|fish:wrasse|1|0,3|20-30|#7fd36a,#cfe9a0,#2a6a3a,#7fd36a|hs|夜は すなに もぐって ねむる。
+honsome|ホンソメワケベラ|fish:wrasse|2|0|8-12|#1f7bff,#dff2ff,#111,#1f7bff|line|ほかの魚の そうじやさん。
+budai|ブダイ|fish:wrasse|2|0,3|30-50|#b05a3a,#e0a080,#7a3020,#b05a3a|scale|夜は ねぶくろを つくって ねる。
+aobudai|アオブダイ|fish:wrasse|3|0|60-90|#2fb6a0,#7fe0c0,#1f6a60,#2fb6a0|scale|おでこが ぽこっと でている。
+napoleon|メガネモチノウオ|fish:grp|4|0|100-200|#2f9a8a,#6fd0c0,#ffd21f,#2f9a8a|wavy|ナポレオンフィッシュとも よばれる。|L
+mino|ミノカサゴ|fish:lion|3|0|20-30|#ff6a4a,#ffd0c0,#fff,#ff9a7a|vs|毒のある トゲを もつ。さわらないでね。
+onidaruma|オニダルマオコゼ|fish:scorp|3|0|30-40|#7a6a5a,#a09080,#4a3a2a,#7a6a5a|mot|岩に そっくり。せかいで いちばん 強い毒。
+hakofugu_r|ハコフグ|fish:box|1|0,3|20-30|#ffd21f,#fff3a0,#2a5bff,#ffd21f|dot|かたい はこみたいな からだ。
+mongara|モンガラカワハギ|fish:tai|3|0|25-40|#222,#ffd21f,#fff,#222|ws|水玉もようが おしゃれ。
+gomamongara|ゴマモンガラ|fish:tai|3|0|50-70|#c0a060,#e0d0a0,#5a4a3a,#c0a060|sp|たまごを まもる ときは とても こわい。
+murasame|ムラサメモンガラ|fish:tai|2|0|20-30|#d0c8b0,#fff,#2a5bff,#d0c8b0|diag|ピカソみたいな もよう。
+nizadai|ニザダイ|fish:surgeon|1|0,3|30-40|#6a6a7a,#9a9aa8,#222,#6a6a7a|sp|しっぽの つけねに トゲが ある。
+aigo|アイゴ|fish:tai|1|0,3|25-35|#7a8a6a,#c0c8a0,#fff,#7a8a6a|ws|ヒレの トゲに 毒が ある。
+tenguhagi|テングハギ|fish:surgeon|3|0|40-60|#6a8aa0,#a0b8c8,#222,#6a8aa0|p|おでこに ツノが ある。
+heraya|ヘラヤガラ|fish:needle|2|0|50-80|#c08a3a,#e0c080,#5a3a1a,#c08a3a|line|ストローのような ほそ長い 口。|M
+yagara|アカヤガラ|fish:needle|2|3|80-150|#e8603a,#ffa080,#fff,#e8603a|p|口が とっても 長い。|M
+tatsu|タツノオトシゴ|horse|2|0,3|6-10|#e8a03a,#ffd080,#a05a1a|p|おとうさんが おなかで 赤ちゃんを そだてる。
+kumado|リーフィーシードラゴン|horse|4|0|30-45|#e0b040,#ffe080,#8bc34a|p|海そうに そっくりな タツノオトシゴの なかま。|M
+fuefuki|ヤマブキベラ|fish:wrasse|1|0|15-25|#ffd21f,#fff3a0,#2fb6a0,#ffd21f|hs|黄色く かがやく ベラ。
+kasumi|カスミアジ|fish:tuna|3|0|60-100|#2f6aa8,#c0d8f0,#1f3a8a,#2fb6ff|sp|青い ヒレが きれいな アジ。|M
+gt|ロウニンアジ|fish:tuna|4|0|100-170|#6a7a88,#c8d0d8,#222,#6a7a88|p|つり人が あこがれる 大物 GT。|L
+isomaguro|イソマグロ|fish:tuna|3|0|80-150|#3a5a7a,#d0dce8,#222,#3a5a7a|p|サンゴ礁に すむ マグロ。|M
+akahata|アカハタ|fish:grp|2|0,3|25-35|#e8402a,#ff8a6a,#fff,#e8402a|ws|まっかな ハタの なかま。
+yukatahata|ユカタハタ|fish:grp|3|0|30-40|#d02a2a,#ff6a5a,#2f9aff,#d02a2a|dot|青い 水玉が ゆかたみたい。
+sujiara|スジアラ|fish:grp|4|0|50-100|#e8503a,#ff9a7a,#2f6aff,#e8503a|dot|おきなわでは 高級魚。|M
+tamakai|タマカイ|fish:grp|4|0|150-250|#6a6a50,#a0a080,#3a3a2a,#6a6a50|mot|サンゴ礁 さいだいの ハタ。人より 大きい！|L
+akakukuri|アカククリ|fish:deep|2|0|30-45|#3a3a3a,#6a6a6a,#e8402a,#3a3a3a|p|ひれのふちが 赤い。
+onikamasu|オニカマス|fish:barra|3|0|100-150|#8a9aa8,#d8e0e8,#222,#8a9aa8|sp|バラクーダとも よばれる。歯が するどい。|M
+datsu_r|ダツ|fish:needle|2|0,4|60-100|#3a8ac0,#e0f0ff,#222,#3a8ac0|p|光に むかって とびこむ ことが ある。|M
+gingame|ギンガメアジ|fish:tuna|3|0|50-90|#8a9aa8,#e0e8f0,#222,#8a9aa8|p|大きな むれで うずを まく。|M
+tsubameuo|ツバメウオ|fish:deep|2|0|30-50|#c0b8a0,#e8e0d0,#3a3a3a,#c0b8a0|vs2|子どもの ころは 葉っぱに ばける。
+kaeru|カエルアンコウ|fish:angler|2|0|10-20|#ffcf3a,#ffe080,#e8a020,#ffcf3a|mot|ヒレで 歩くように うごく。
+hihuki|ヒフキアイゴ|fish:tai|2|0|20-30|#ffd21f,#fff,#3a3a3a,#ffd21f|half|口が ラッパみたいに とがる。
+kosho|コショウダイ|fish:tai|2|0,3|40-60|#c8c8b0,#e8e8d8,#3a3a3a,#c8c8b0|sp|コショウを ふったような もよう。
+rokusen|ロクセンスズメダイ|fish:wrasse|1|0|10-15|#d8e8a0,#fff,#222,#d8e8a0|vs|6本の しまもよう。
+nemuribuka|ネムリブカ|shark:shark|3|0|100-160|#7a8088,#c0c4c8,#fff,#7a8088|p|ひるまは 岩かげで ねている サメ。|M
+tsumaguro|ツマグロ|shark:shark|3|0|100-180|#9aa0a8,#e0e4e8,#111,#9aa0a8|p|ヒレの 先が 黒い サメ。|M
+torafu|トラフザメ|shark:shark|3|0|150-250|#e8d090,#f8ecc0,#3a3a3a,#e8d090|sp|ヒョウみたいな 水玉の サメ。|L
+madaratobi|マダラトビエイ|ray|4|0,4|150-300|#1f2a4a,#e8f0ff,#fff,#1f2a4a|ws|水の上を ジャンプする エイ。|L
+manta|オニイトマキエイ|ray|5|0,4|400-700|#1f2a3a,#e8eef8,#fff,#1f2a3a|p|マンタとも よばれる 大きな エイ。|L|manta
+aoumigame|アオウミガメ|turtle|4|0,3|80-120|#7a8a4a,#c0c890,#4a5a2a|p|なん千キロも 旅をする カメ。|L
+taimai|タイマイ|turtle|4|0|60-90|#a06a3a,#e0b080,#5a3a1a|p|こうらの もようが とても きれい。|M
+aorika|アオリイカ|squid|2|0,3|30-45|#c8a0a0,#e8d0d0,#a06060,#c8a0a0|sp|イカの 王さまと よばれる。|M|cuttle
+koika|コウイカ|squid|2|3|15-20|#a08060,#d8c0a0,#5a3a2a,#a08060|wavy|からだの中に かたい こうらが ある。||cuttle
+hyomondako|ヒョウモンダコ|octo|3|0|10-12|#e8c040,#f8e080,#2f6aff,#e8c040|p|青い わっか もようは 毒の しるし。||ring
+otohime|オトヒメエビ|shrimp|2|0|5-6|#fff,#fff,#e8402a,#fff|p|赤と白の しまの エビ。||claw
+nishikiebi|ニシキエビ|shrimp|4|0|40-60|#2f8a8a,#e8c8a0,#ffd21f,#2f8a8a|sp|イセエビの なかまで いちばん はなやか。|M|spiny
+semiebi|セミエビ|iso|3|0,3|20-30|#a0603a,#d8a070,#5a3a1a|p|セミに にた かたちの エビ。
+takokurage|タコクラゲ|jelly|1|0|10-20|#c8b080,#e8d8b0,#fff|ws|タコみたいな あしの クラゲ。||arms
+sakasa|サカサクラゲ|jelly|1|0|10-15|#a0b080,#d0e0b0,#6a8a5a|p|さかさまに しずんで くらす。
+aohitode|アオヒトデ|star|1|0|20-30|#2f6aff,#5f9aff,#1f3aaa|p|まっさおな ヒトデ。
+onihitode|オニヒトデ|star|3|0|30-60|#8a3a5a,#c06080,#ff8a3a|p|トゲトゲの 大きな ヒトデ。|M|spikes
+gangaze|ガンガゼ|urchin|2|0|10-20|#2a2a3a,#4a4a5a,#111|p|とても 長い トゲの ウニ。||long
+shakogai|シャコガイ|shell|3|0|30-100|#8a7a5a,#2fb6a0,#1f7bff|mot|せかいで いちばん 大きな 貝の なかま。|M|clam
+anko_r|アンコウ|fish:angler|2|1,2|40-80|#6a5a4a,#a09080,#3a2a1a,#6a5a4a|mot|口の上の ちょうちんで えものを さそう。|M
+chochin_r|チョウチンアンコウ|fish:angler|3|1|5-40|#2a2a3a,#4a4a5a,#111,#2a2a3a|p|深海で ちょうちんを ひからせる。
+mitsukuri|ミツクリザメ|shark:goblin|4|1|200-380|#e8a0a0,#f8d0d0,#fff,#e8a0a0|p|ゴブリンシャークとも よばれる ふしぎな サメ。|L
+rabuka|ラブカ|shark:frill|4|1|100-200|#6a5a6a,#9a8a9a,#fff,#6a5a6a|p|大むかしから すがたが かわらない サメ。|M
+megamouth|メガマウス|shark:megamouth|5|1,4|400-600|#3a3a4a,#c0c0c8,#fff,#3a3a4a|p|口が とても 大きい なぞの サメ。|L
+oondenzame|オンデンザメ|shark:shark|4|1,2|300-500|#4a4a50,#7a7a80,#222,#4a4a50|p|400年 生きる ものも いるらしい。|L
+daiogusoku|ダイオウグソクムシ|iso|4|1|30-45|#c8c0b0,#e8e0d0,#8a8070|p|5年 なにも 食べなくても 生きた ことがある。|M
+ogusoku|オオグソクムシ|iso|2|1|8-12|#d0b8a0,#e8d8c8,#8a7060|p|深海の そうじやさん。
+horaieso|ホウライエソ|fish:viper|3|1|25-35|#2a3a4a,#4a5a6a,#9ff,#2a3a4a|glow|長い キバと 光る からだ。
+demenigisu|デメニギス|fish:hatchet|4|1|10-15|#4a4a5a,#8a8a9a,#3fff9f,#4a4a5a|p|頭が とうめいで 目が 中に ある。
+bouengyo|ボウエンギョ|fish:hatchet|2|1|10-20|#3a3a4a,#7a7a8a,#bff,#3a3a4a|glow|望遠鏡みたいな 大きな 目。
+hadakaiwashi|ハダカイワシ|fish:sard|1|1|5-10|#3a4a6a,#8a9ab8,#7ff,#3a4a6a|glow|からだに 光る てんてんが ある。
+kinmedai|キンメダイ|fish:tai|3|1|30-50|#e8302a,#ff8a6a,#ffd21f,#e8302a|p|金色に 光る 大きな 目。|M
+akamutsu|アカムツ|fish:carp|3|1|30-40|#e8504a,#ffb0a0,#fff,#e8504a|p|のどの 中が 黒いので ノドグロとも よぶ。
+kichiji|キチジ|fish:scorp|3|1,2|25-30|#e8302a,#ff8a6a,#222,#e8302a|p|キンキとも よばれる 赤い 魚。
+yumekasago|ユメカサゴ|fish:scorp|2|1|20-30|#e8603a,#ffa080,#fff,#e8603a|p|深い 海に すむ カサゴ。
+mendako|メンダコ|octo|4|1|15-20|#ff7a5a,#ffb09a,#e8503a|p|耳みたいな ヒレが かわいい 深海の タコ。||dumbo
+daiouika|ダイオウイカ|squid|5|1|500-1200|#c0402a,#e88070,#7a2010,#c0402a|p|せかいで いちばん 長い イカ。|L
+hotaruika|ホタルイカ|squid|2|1|5-7|#5a3a8a,#9a7ac8,#7ff,#5a3a8a|glow|青白く ひかる 小さな イカ。|S
+benizuwai|ベニズワイガニ|crab|2|1|10-15|#e8402a,#ff8a6a,#e8402a|p|深い 海に すむ 赤い カニ。||longleg
+takaashi|タカアシガニ|crab|4|1|100-300|#e8803a,#ffb07a,#ff9a5a|sp|あしを 広げると 3メートル！ せかいさいだいの カニ。|L|longleg
+zuwai|ズワイガニ|crab|3|1,2|10-15|#e8603a,#ffa07a,#e8603a|p|冬の ごちそう。||longleg
+genge|ノロゲンゲ|eel|1|1|20-30|#9a8a9a,#c8b8c8,#6a5a6a|p|ぷるぷるの ゼラチンみたいな 魚。
+mizudako|ミズダコ|octo|4|1,2|200-300|#c84a3a,#e88a7a,#7a2010|mot|せかいで いちばん 大きな タコ。|L
+fukurounagi|フクロウナギ|eel|4|1|50-80|#1a1a2a,#3a3a5a,#f0f|p|ふくろみたいな 大きな 口。|M
+onikinme|オニキンメ|fish:viper|3|1|10-16|#3a2a2a,#5a4a4a,#fff,#3a2a2a|p|からだに あわない 大きな キバ。
+hikarikinme|ヒカリキンメダイ|fish:carp|2|1|8-12|#1a1a2a,#3a3a4a,#7ff,#1a1a2a|glow|目の下が 光る。
+kuromutsu|クロムツ|fish:carp|2|1|30-50|#2a2a3a,#5a5a6a,#111,#2a2a3a|p|深い 海の おいしい 魚。
+aburabozu|アブラボウズ|fish:grp|3|1|100-180|#4a4a4a,#7a7a7a,#2a2a2a,#4a4a4a|mot|あぶらが たっぷりの 大物。|L
+itohiki|イトヒキイワシ|fish:carp|3|1|20-30|#8a8a9a,#c8c8d0,#fff,#8a8a9a|p|ヒレを 三脚のように して 海底に 立つ。
+sekiyamu|センジュナマコ|jelly|3|1|10-20|#f0a0b0,#ffd0d8,#ff7a9a|p|ブタみたいな 深海の ナマコ。||arms
+oumu|オウムガイ|shell|4|1,3|15-25|#fff6e0,#fff,#c8603a|p|5億年前から いる「生きた化石」。|M|naut
+benimasu|ベニザケ|fish:carp|2|2|50-70|#e8402a,#ff7a5a,#2a6a3a,#e8402a|p|川に のぼると まっかに なる。
+sake|サケ|fish:carp|2|2|60-80|#5a7a9a,#e0e8f0,#222,#5a7a9a|sp|生まれた 川に もどって くる。|M
+karafuto|カラフトマス|fish:carp|2|2|40-60|#5a8aa0,#e0ecf4,#222,#5a8aa0|sp|オスは せなかが もりあがる。
+nishin|ニシン|fish:sard|1|2|25-35|#3a6aa0,#e8f0f8,#222,#3a6aa0|p|たまごは かずのこ。
+sukesou|スケトウダラ|fish:carp|1|2|40-60|#8a8a6a,#e0e0d0,#4a4a3a,#8a8a6a|sp|たまごは たらこ。
+madara|マダラ|fish:carp|2|2|60-100|#a09060,#e8e0c0,#5a4a2a,#a09060|sp|あごに ひげが 1本 ある。|M
+komai|コマイ|fish:carp|1|2|20-30|#a0a080,#e8e8d0,#5a5a4a,#a0a080|p|氷の下で つれる タラの なかま。
+hokke|ホッケ|fish:carp|1|2,3|30-40|#8a8a6a,#e0d8b0,#3a3a2a,#8a8a6a|vs|ひらきに すると おいしい。
+magarei|マガレイ|fish:flat|1|2,3|25-40|#8a7a5a,#d0c0a0,#5a4a2a,#8a7a5a|sp|目が からだの みぎがわに ある。
+ohyo|オヒョウ|fish:flat|4|2|100-250|#6a5a3a,#a09070,#3a2a1a,#6a5a3a|mot|カレイの なかまで いちばん 大きい。|L
+hatahata|ハタハタ|fish:carp|1|2|15-20|#c8b8a0,#f0e8e0,#7a6a5a,#c8b8a0|mot|かみなりの 季節に とれる 魚。
+kajika|カジカ|fish:goby|1|2|20-30|#6a6a5a,#a09a80,#3a3a2a,#6a6a5a|mot|頭が 大きい。なべで 食べると おいしい。
+gokko|ホテイウオ|fish:box|2|2|20-30|#8aa0b8,#c8d8e8,#5a6a7a,#8aa0b8|p|ゴッコとも よぶ。ぷよぷよした からだ。
+kurione|クリオネ|clione|3|2|1-3|#e0f4ff,#fff,#ff6a6a|p|流氷の 天使と よばれる 貝の なかま。|S
+taraba|タラバガニ|crab|4|2|80-120|#c8402a,#ff8a6a,#e8603a|sp|あしが 太くて ごちそう。|M|longleg
+kegani|ケガニ|crab|2|2|10-15|#a0603a,#d8a070,#a0603a|p|からだじゅう 毛だらけ。||hair
+hanasaki|ハナサキガニ|crab|3|2|15-20|#c8403a,#ff8a6a,#c8403a|sp|トゲトゲの カニ。
+botanebi|ボタンエビ|shrimp|3|2|15-20|#ff6a4a,#ffb0a0,#e8402a|p|大きくて あまい エビ。
+amaebi|ホッコクアカエビ|shrimp|1|2,1|10-12|#ff6a5a,#ffb0a0,#ff5a4a|p|あまえびと よばれる。
+wakasagi|ワカサギ|fish:sard|1|2|8-12|#c0d0d8,#f0f8ff,#5a6a7a,#c0d0d8|line|氷に あなを あけて つる。
+shishamo|シシャモ|fish:sard|1|2|10-15|#a0a090,#f0f0e0,#5a5a4a,#a0a090|p|たまごが ぎっしり。
+kyuriuo|キュウリウオ|fish:sard|1|2|15-25|#7a9a8a,#e0f0e8,#3a5a4a,#7a9a8a|sp|キュウリの においが する 魚。
+nezumizame|ネズミザメ|shark:shark|3|2|200-300|#4a5a6a,#e0e4e8,#222,#4a5a6a|p|つめたい 海の サメ。モウカザメとも。|L
+gomafu|ゴマフアザラシ|mammal|3|2|120-170|#b8b8b0,#e8e8e0,#4a4a4a|sp|赤ちゃんは まっしろ。|M|seal
+seiuchi|セイウチ|mammal|5|2|250-350|#c08a6a,#d8a888,#8a5a3a|p|長い キバで 氷に のぼる。|L|walrus
+shachi|シャチ|mammal|5|2,4|600-900|#111,#fff,#111|half|海の 王者。チームで かりを する。|L|orca
+ikkaku|イッカク|mammal|5|2|400-500|#a8b0b8,#e0e4e8,#5a6a7a|sp|頭に 長い キバが 1本。海の ユニコーン。|L|narwhal
+beluga|シロイルカ|mammal|4|2|300-450|#f4f8ff,#fff,#c8d0d8|p|海の カナリアと よばれる 歌の じょうず。|L|beluga
+rakko|ラッコ|mammal|4|2|100-140|#7a5a3a,#c8a888,#4a3a2a|p|おなかの上で 貝を わる。|M|otter
+ainame|アイナメ|fish:carp|2|2,3|30-40|#8a6a3a,#d8c098,#5a3a1a,#8a6a3a|mot|岩の まわりに すむ。
+kurosoi|クロソイ|fish:scorp|2|2,3|30-50|#3a3a3a,#7a7a7a,#111,#3a3a3a|p|夜に えさを さがす。
+menuke|メヌケ|fish:scorp|3|2,1|40-60|#e8302a,#ff7a6a,#fff,#e8302a|p|つりあげると 目が とびでる。
+yanagidako|ヤナギダコ|octo|2|2|40-60|#c87a6a,#e8b0a0,#8a4a3a|p|あしが 長い タコ。
+hotate|ホタテ|shell|1|2,3|10-20|#d87a5a,#fff0e0,#b05a3a|p|貝がらを パクパクして およぐ。||scallop
+tsubu|ツブ貝|shell|1|2|10-15|#a08a6a,#e0d0b0,#5a4a3a|p|ぐるぐる まきの 貝。||snail
+ezobafun|エゾバフンウニ|urchin|2|2|5-10|#5a7a3a,#7a9a5a,#3a5a2a|p|みじかい トゲの ウニ。
+kitamurasaki|キタムラサキウニ|urchin|2|2,3|8-12|#4a2a5a,#6a4a7a,#2a1a3a|p|むらさき色の ウニ。
+madai|マダイ|fish:tai|2|3,0|40-80|#ff7a8a,#ffd0d8,#2fb6ff,#ff7a8a|dot|めでたい 魚の 王さま。|M
+kurodai|クロダイ|fish:tai|2|3|30-50|#4a4a50,#9a9aa0,#222,#4a4a50|p|チヌとも よばれる。
+mejina|メジナ|fish:tai|1|3|25-40|#3a4a4a,#7a8a8a,#111,#3a4a4a|p|いそづりの 人気もの。
+ishidai|イシダイ|fish:tai|3|3|40-60|#e0e0c8,#fff,#222,#e0e0c8|vs|かたい 貝を 歯で くだく。
+ishigaki|イシガキダイ|fish:tai|3|3,0|40-60|#d8d0b0,#fff,#3a3a3a,#d8d0b0|sp|石がきみたいな もよう。
+kawahagi|カワハギ|fish:tai|1|3|20-25|#c8b890,#e8e0c8,#7a6a4a,#c8b890|mot|皮を はいで 食べる。
+umazura|ウマヅラハギ|fish:tai|1|3|25-35|#7a8a9a,#c0c8d0,#4a5a6a,#2f6aff|p|ウマみたいな 長い かお。
+kasago_r|カサゴ|fish:scorp|1|3|15-30|#c84a2a,#ff9a7a,#7a2a1a,#c84a2a|mot|岩の すきまに かくれている。
+mebaru_r|メバル|fish:scorp|1|3|15-25|#6a5a4a,#b0a090,#3a2a1a,#6a5a4a|vs|大きな 目で 上を みている。
+mahaze|マハゼ|fish:goby|1|3|10-20|#b0a080,#e8e0c8,#6a5a3a,#b0a080|sp|ちびっこでも つりやすい 魚。
+ginpo|ギンポ|eel|1|3|15-20|#a08a5a,#d8c8a0,#5a4a2a|sp|岩の あなから 顔を だす。
+anago|マアナゴ|eel|1|3|40-90|#8a7a5a,#e0d8c0,#fff|ws|からだに 白い てんてんが ならぶ。|M
+unagi|ニホンウナギ|eel|3|3|50-100|#3a4a3a,#c0c8b0,#222|p|海で 生まれて 川で そだつ。|M
+utsubo_r|ウツボ|eel|2|3,0|60-100|#a0802a,#e0c060,#4a3a1a|mot|するどい 歯で えものを とる。|M
+hirame|ヒラメ|fish:flat|3|3|40-80|#7a6a4a,#c0b090,#3a2a1a,#7a6a4a|sp|目が からだの ひだりがわに ある。|M
+makogarei|マコガレイ|fish:flat|1|3|20-30|#8a7a5a,#c8b898,#4a3a2a,#8a7a5a|sp|すなに かくれる のが じょうず。
+suzuki|スズキ|fish:mack|2|3|50-90|#6a7a8a,#e0e8f0,#222,#6a7a8a|p|大きくなると 名前が かわる 出世魚。|M
+bora|ボラ|fish:carp|1|3|30-60|#6a7a8a,#d0d8e0,#3a4a5a,#6a7a8a|hs|水面から ジャンプする。
+konoshiro|コノシロ|fish:sard|1|3|15-25|#5a7a9a,#e8f0f8,#222,#5a7a9a|dot|小さいころは コハダと よぶ。
+kisu|シロギス|fish:sard|1|3|15-25|#e8e0c8,#fff,#a09a80,#e8e0c8|p|すなはまの じょおう。
+hiiragi|ヒイラギ|fish:deep|1|3|8-12|#c8d0d8,#f0f4f8,#7a8a9a,#c8d0d8|p|からだが ぬるぬるして ひかる。
+nenbutsu|ネンブツダイ|fish:carp|1|3|8-10|#ff9a7a,#ffd8c8,#c84a2a,#ff9a7a|hs|口の中で たまごを まもる。
+oyabiccha|オヤビッチャ|fish:wrasse|1|3,0|10-15|#d8e0a0,#fff,#222,#ffd21f|vs|5本の 黒い しま。
+houbou|ホウボウ|fish:scorp|3|3|30-40|#e8503a,#ffb0a0,#2f9aff,#2fb6ff|p|むなびれが チョウみたい。ゆびで 歩く。
+okoze|オニオコゼ|fish:scorp|3|3|20-25|#a06a5a,#d0a090,#5a3a2a,#a06a5a|mot|せびれに 毒の トゲ。
+gonzui|ゴンズイ|fish:goby|1|3,0|10-20|#3a2a3a,#6a5a6a,#ffd21f,#3a2a3a|line|ボールみたいに かたまって およぐ。
+akaei|アカエイ|ray|2|3|80-150|#a06a4a,#f0d8c8,#5a3a2a,#a06a4a|p|しっぽに 毒の トゲ。|M
+nekozame|ネコザメ|shark:shark|2|3|80-120|#a08a6a,#d8c8b0,#4a3a2a,#a08a6a|vs|サザエを バリバリ 食べる。|M
+dochizame|ドチザメ|shark:shark|2|3|100-150|#7a7a6a,#c8c8b8,#3a3a2a,#7a7a6a|sp|ひがたにも くる サメ。|M
+madako|マダコ|octo|2|3|40-60|#c86a4a,#e8a88a,#8a3a2a|mot|かしこくて ビンの ふたも あけられる。
+iidako|イイダコ|octo|1|3|15-25|#a07a5a,#d8b898,#5a3a2a|p|たまごが ごはんつぶ みたい。
+yariika|ヤリイカ|squid|1|3,4|20-40|#e8c8c0,#fff0f0,#c08080,#e8c8c0|dot|ヤリみたいに とがった イカ。
+surume|スルメイカ|squid|1|3,4|20-30|#c8806a,#f0c8b8,#8a4a3a,#c8806a|p|ほすと スルメに なる。
+iseebi|イセエビ|shrimp|4|3|20-35|#a02a1a,#e8604a,#6a1a10|p|おいわいに 食べる エビの 王さま。|M|spiny
+kuruma|クルマエビ|shrimp|2|3|15-25|#c8a07a,#f0d8c0,#3a3a5a|p|まるまると 車の わ みたいに なる。
+gazami|ガザミ|crab|2|3|15-25|#5a6a8a,#a0a8c0,#2f6aff|sp|うしろあしが オールみたいな ワタリガニ。
+ishigani|イシガニ|crab|1|3|8-10|#7a5a4a,#b09080,#c84a3a|p|いその 岩の あいだに いる。
+sazae|サザエ|shell|1|3|8-12|#6a6a4a,#a0a080,#3a3a2a|p|トゲトゲの まきがい。||snail
+awabi|アワビ|shell|3|3|10-20|#6a5a4a,#a09080,#2fb6a0|p|うらがわが にじ色に ひかる。||abalone
+kabutogani|カブトガニ|shell|4|3|50-60|#6a5a3a,#a09060,#3a2a1a|p|4億年前から いる「生きた化石」。|M|kabuto
+akaumigame|アカウミガメ|turtle|4|3,4|70-100|#a0602a,#e0a070,#6a3a1a|p|日本の すなはまで たまごを うむ。|L
+harisen_r|ハリセンボン|puffer|1|3,0|15-30|#d8c8a0,#fff8e0,#5a4a3a|sp|おこると トゲを 立てて ふくらむ。||spikes
+kusafugu|クサフグ|puffer|1|3|10-15|#6a8a5a,#fff,#fff|ws|すなはまに むれで くる フグ。
+torafugu|トラフグ|puffer|3|3|50-70|#3a3a4a,#fff,#111|p|高級な フグ。毒が あるので 注意！|M
+kitamakura|キタマクラ|puffer|1|3,0|10-15|#5a6aa0,#fff,#ffd21f|hs|小さな フグ。毒が あるよ。
+kuromaguro|クロマグロ|fish:tuna|4|4|200-300|#1f2a4a,#e0e8f0,#222,#1f2a4a|p|ほんまぐろ。時速80キロで およぐ！|L
+kihada|キハダ|fish:tuna|3|4|100-150|#1f3a6a,#e0e8f0,#ffd21f,#ffd21f|line|黄色い ヒレの マグロ。|M
+mebachi|メバチ|fish:tuna|3|4|100-150|#1f2a5a,#e0e8f0,#222,#1f2a5a|p|目が 大きい マグロ。|M
+binnaga|ビンナガ|fish:tuna|2|4|80-100|#2a3a5a,#e8eef4,#222,#2a3a5a|p|むなびれが とても 長い。ツナ缶に なる。|M
+katsuo|カツオ|fish:tuna|2|4|40-80|#1f2a5a,#e0e8f0,#3a4a6a,#1f2a5a|hs|かつおぶしの もと。
+souda|ソウダガツオ|fish:tuna|1|4|30-40|#2a4a7a,#e8eef4,#1f2a4a,#2a4a7a|wavy|かつおぶしに なる 小さい カツオ。
+buri|ブリ|fish:mack|3|4|70-100|#3a5a8a,#e8eef4,#ffd21f,#ffd21f|line|大きくなると 名前が かわる 出世魚。|M
+kanpachi|カンパチ|fish:mack|3|4|60-100|#7a6a5a,#e8e0d8,#c8a060,#7a6a5a|line|顔に ななめの もよう。|M
+hiramasa|ヒラマサ|fish:mack|3|4|80-120|#3a6a8a,#e8f0f4,#ffd21f,#ffd21f|line|ブリに にた スピードスター。|M
+shiira|シイラ|fish:wrasse|3|4|80-150|#2fb67a,#ffd21f,#2f6aff,#2fb6a0|dot|金色と 緑に かがやく。おでこが ゴツい。|M
+makajiki|マカジキ|fish:sword|4|4|200-350|#1f3a7a,#e0e8f0,#5aa0ff,#1f3a7a|vs|つり人の ゆめの 大物。|L
+mekajiki|メカジキ|fish:sword|4|4|200-400|#3a3a4a,#c0c4c8,#222,#3a3a4a|p|けんのような 長い くちばし。|L
+bashou|バショウカジキ|fish:sail|4|4|150-300|#1f3a8a,#e0e8f0,#5aa0ff,#2f5bff|dot|海で いちばん 速い 魚。時速100キロ！|L
+tobiuo_r|トビウオ|fish:mack|1|4|25-35|#1f4a8a,#e8f0f8,#5aa0ff,#5aa0ff|p|ヒレを はねにして 空を とぶ。
+sanma|サンマ|fish:needle|1|4,2|25-35|#2a4a7a,#e8f0f8,#222,#2a4a7a|p|秋の あじ。くちばしが すこし とがる。
+maiwashi|マイワシ|fish:sard|1|4,3|15-25|#2a5a8a,#e8f0f8,#222,#2a5a8a|dot|何万びきの むれで およぐ。
+katakuchi|カタクチイワシ|fish:sard|1|4,3|10-15|#3a6a9a,#e8f0f8,#5a8ab8,#3a6a9a|line|しらすの おやに なる。
+masaba|マサバ|fish:mack|1|4,3|30-45|#2a6a7a,#e8f0f8,#1a3a4a,#2a6a7a|wavy|せなかに ぐにゃぐにゃ もよう。
+gomasaba|ゴマサバ|fish:mack|1|4|30-40|#2a6a8a,#e8f0f8,#3a4a5a,#2a6a8a|sp|おなかに ゴマみたいな てんてん。
+maaji|マアジ|fish:mack|1|4,3|15-35|#5a8aa0,#e8f0f4,#ffd21f,#5a8aa0|line|しっぽに かたい ゼイゴが ある。
+muroaji|ムロアジ|fish:mack|1|4|25-40|#3a6a9a,#e8f0f8,#ffd21f,#3a6a9a|line|くさやに なる アジ。
+sawara|サワラ|fish:barra|2|4,3|60-100|#5a7a9a,#e8f0f4,#3a5a7a,#5a7a9a|dot|ほそながい サバの なかま。|M
+manbo_r|マンボウ|mola|4|4|200-330|#8a9aa8,#d8e0e8,#5a6a7a|p|1回に 3おくこの たまごを うむ。|L
+jinbe|ジンベエザメ|shark:whaleshark|5|4,0|800-1200|#2a4a6a,#e0e8f0,#fff,#2a4a6a|ws|せかいで いちばん 大きな 魚。|L
+hohojiro|ホホジロザメ|shark:shark|5|4,2|400-600|#6a7a8a,#f0f4f8,#fff,#6a7a8a|half|海で いちばん こわい サメ。|L
+shumoku|アカシュモクザメ|shark:hammer|4|4,0|200-400|#7a8a8a,#e0e8e8,#fff,#7a8a8a|p|頭が かなづち みたい。|L
+aozame|アオザメ|shark:shark|4|4|250-400|#1f4aa0,#f0f4f8,#fff,#1f4aa0|p|サメで いちばん 速い。|L
+yoshikiri|ヨシキリザメ|shark:shark|3|4|200-300|#2f6aff,#f0f4ff,#fff,#2f6aff|p|あざやかな 青色の サメ。|L
+bando|バンドウイルカ|mammal|4|4,3|250-350|#7a8a9a,#e0e8f0,#5a6a7a|p|とても かしこい イルカ。|L|dolphin
+kamairuka|カマイルカ|mammal|3|4|180-240|#2a3a4a,#f0f4f8,#9aa8b8|half|せびれが カマの ような かたち。|M|dolphin
+zatou|ザトウクジラ|mammal|5|4|1200-1600|#2a3a4a,#e0e8f0,#6a7a8a|p|長い むなびれで 歌を うたう クジラ。|L|whale|longfin
+makko|マッコウクジラ|mammal|5|4,1|1100-1800|#4a4a5a,#7a7a8a,#3a3a4a|p|深海まで もぐって ダイオウイカを 食べる。|L|sperm
+shironaga|シロナガスクジラ|mammal|5|4|2500-3000|#5a7a9a,#a0b8d0,#3a5a7a|sp|ちきゅうで いちばん 大きな 生きもの。|L|whale
+osagame|オサガメ|turtle|4|4|150-200|#2a2a3a,#5a5a6a,#9a9aa8|p|いちばん 大きな ウミガメ。|L|leather
+akakurage|アカクラゲ|jelly|1|4|10-20|#ff8a6a,#ffd0c0,#e8402a|vs|長い しょくしゅに 毒が ある。||long
+mizukurage|ミズクラゲ|jelly|1|4,3|15-30|#d8ecff,#fff,#c080ff|p|4つの わっか もようが 目じるし。||ring
+katsuonoeboshi|カツオノエボシ|jelly|2|4|10-30|#7ab8ff,#d0e8ff,#2f6aff|p|青い ふうせんの 毒クラゲ。||long
+echizen|エチゼンクラゲ|jelly|4|4|100-200|#e8c8a0,#fff0e0,#c8a080|p|かさが 2メートルにも なる 巨大クラゲ。|L|arms
+akamanbou|アカマンボウ|fish:deep|4|4,1|100-180|#c84a5a,#ff9a9a,#fff,#e8302a|ws|からだが あたたかい めずらしい 魚。|L
+ryugu_r|リュウグウノツカイ|eel|5|1,4|300-800|#d8e0f0,#fff,#ff5a5a|p|ほんものの「りゅうぐうの つかい」。|L
+darumazame|ダルマザメ|shark:shark|3|4,1|30-50|#5a4a4a,#8a7a7a,#222,#5a4a4a|p|クッキーみたいに かじる 小さな サメ。
+sapphire|アオミノウミウシ|clione|3|4|2-4|#5a8aff,#c8d8ff,#1f3aff|p|海に うかぶ 青い ドラゴン。|S
+kiboshi|キイロハギ|fish:surgeon|2|0|15-20|#ffe21a,#fff06a,#fff,#ffe21a|p|まっきいろの かわいい 魚。
+hanadai|キンギョハナダイ|fish:wrasse|1|0|8-12|#ff8a5a,#ffb08a,#c84aff,#ff8a5a|p|サンゴの 上で むれる オレンジの 魚。
+jinkoto|ハナミノカサゴ|fish:lion|3|0|25-35|#c8402a,#ffd0c0,#fff,#e8603a|vs|大きな ヒレを 広げて おどる。
+kuroyuri|ヤッコエイ|ray|2|0|30-50|#c8a060,#f0e0c0,#2f6aff,#c8a060|dot|青い 水玉の エイ。
+nijihagi|ニジハギ|fish:surgeon|3|0|20-30|#2fa0e0,#7fd0ff,#ffd21f,#2fa0e0|hs|にじ色の しまもよう。
+iratogi|ヒメフエダイ|fish:tai|1|0|20-30|#ff8a5a,#ffd0b0,#ffd21f,#ff8a5a|line|黄色い 線の フエダイ。
+moyo|ゴマフエダイ|fish:tai|2|0|40-60|#8a5a4a,#d0a090,#3a2a1a,#8a5a4a|sp|マングローブの 根っこに すむ。|M
+oniokoze2|ハナオコゼ|fish:angler|2|0|10-15|#c8a050,#f0d890,#5a4a2a,#c8a050|mot|流れ藻に かくれて 旅をする。
+fuguzasshi|ネズミフグ|puffer|2|0|30-50|#a09a80,#fff,#3a3a2a|sp|トゲの 大きい ハリセンボンの なかま。|M|spikes
+mongaradai|アミメフエダイ|fish:tai|2|0|20-30|#d0c0a0,#fff,#5a4a3a,#d0c0a0|scale|あみめ もようの フエダイ。
+shirotaeumi|シロタエイモ|jelly|2|0,3|5-10|#fff0f8,#fff,#ff9ac8|p|ピンクの 小さな クラゲ。
+umiushi|アオウミウシ|clione|2|0,3|2-5|#2f5bff,#7aa0ff,#ffd21f|p|青と黄色の ウミウシ。|S
+kanmuri|カンムリブダイ|fish:wrasse|4|0|100-130|#4a7a6a,#8ab0a0,#2a4a3a,#4a7a6a|scale|おでこで サンゴを くだく 巨大ブダイ。|L
+dokugatsuo|トウジン|fish:long|1|1|40-60|#8a7a6a,#c0b0a0,#4a3a2a,#8a7a6a|p|しっぽが ほそながい 深海魚。
+sokoitachi|ソコイタチウオ|fish:long|2|1|30-50|#c8b8a8,#e8e0d8,#8a7a6a,#c8b8a8|p|8000メートルの 深海に すむ。
+hatchetfish|テンガンムネエソ|fish:hatchet|2|1|5-8|#c0c8d8,#f0f4ff,#7ff,#c0c8d8|glow|からだが 銀色の 小さな おの みたい。
+ogiume|オニアンコウ|fish:angler|4|1|20-40|#1a1a2a,#3a3a4a,#7ff,#1a1a2a|p|ちょうちんの 先が 光る 深海の アンコウ。
+koganeumeiro|コガネウロコムシ|iso|2|1|5-10|#e8c060,#fff0b0,#b08030|p|金色の うろこの ふしぎな 虫。
+shinkaitako|オオメンダコ|octo|4|1|20-30|#ffa08a,#ffd0c0,#ff6a5a|p|ふわふわ およぐ 大きな メンダコ。|M|dumbo
+mizuuo|ミズウオ|fish:sail|3|1|100-200|#c0c8d0,#f0f4f8,#7a8a9a,#a0a8b0|p|大きな せびれの 深海魚。|L
+akaeso|アカチョウチンクラゲ|jelly|3|1|10-20|#e8302a,#ff8a7a,#ffd0c0|p|まっかな 深海の クラゲ。
+mendakoika|コウモリダコ|octo|4|1|20-30|#5a1a2a,#8a3a4a,#f0f|p|マントを ひろげる 深海の なかま。|M
+seadevil|ミツクリエナガチョウチンアンコウ|fish:angler|4|1|20-40|#2a1a2a,#4a3a4a,#ff9,#2a1a2a|p|名前が とっても 長い アンコウ。
+sokobouzu|ソコボウズ|fish:long|3|1|150-200|#6a5a5a,#a09090,#3a2a2a,#6a5a5a|p|深海の 大きな タラの なかま。|L
+yumekurage|ユメナマコ|jelly|3|1|20-30|#ff7aa0,#ffc0d0,#e8406a|p|ピンク色に すける 深海の ナマコ。||arms
+shiroikamonaka|ギンダラ|fish:carp|2|1,2|60-100|#3a3a4a,#8a8a9a,#222,#3a3a4a|p|あぶらが のって おいしい。|M
+hokkokuebi|トヤマエビ|shrimp|2|2|15-20|#ff8a6a,#ffc0a8,#e8503a|vs|しまもようの 大きな エビ。
+ikanago|イカナゴ|fish:needle|1|2,3|10-20|#8ab0c8,#e8f4ff,#3a6a8a,#8ab0c8|p|すなに もぐって 夏を こす。
+tokishirazu|ギンザケ|fish:carp|2|2|50-70|#4a6a8a,#e8f0f8,#222,#4a6a8a|sp|銀色に かがやく サケ。
+ito_r|イトウ|fish:carp|4|2|100-150|#7a5a4a,#e0c8b8,#c84a3a,#7a5a4a|sp|まぼろしの 大魚。北の 川に すむ。|L
+fusaginpo|フサギンポ|fish:goby|2|2|20-30|#8a6a3a,#d8b888,#5a3a1a,#8a6a3a|mot|頭に フサフサの かざり。
+kokanoko|ホッキョクダラ|fish:carp|1|2|20-30|#9aa8b8,#e8f0f8,#5a6a7a,#9aa8b8|p|氷の下で 生きる タラ。
+lumpsucker|ダンゴウオ|puffer|2|2|2-4|#ff8ab0,#ffd0e0,#ff5a8a|p|ころころ まんまる。きゅうばんで くっつく。|S
+wolfeel|オオカミウオ|eel|4|2|100-150|#7a8a9a,#c0c8d0,#3a4a5a|sp|こわい顔だけど おとなしい。|M
+harpseal|タテゴトアザラシ|mammal|4|2|150-180|#d8d8d0,#f0f0e8,#3a3a3a|p|せなかに たてごとの もよう。|M|seal
+dugong|ジュゴン|mammal|5|0|250-300|#9a9a90,#c8c8c0,#6a6a60|p|人魚の モデルと いわれる。|L|seal
+kurage_ice|キタユウレイクラゲ|jelly|3|2|50-200|#e8a0a0,#ffd0d0,#c84a5a|p|しょくしゅが 30メートルにも なる。|M|long
+sabaebi|ナンキョクオキアミ|shrimp|1|2|4-6|#ff8a7a,#ffd0c8,#e85a4a|p|クジラの ごはん。|S
+kingcrab|アブラガニ|crab|3|2|60-100|#8a3a6a,#c87a9a,#5a2a4a|sp|むらさきっぽい 大きな カニ。|M|longleg
+toubi|トビハゼ|fish:goby|1|3|8-10|#7a7a5a,#b0b090,#3a3a2a,#7a7a5a|sp|どろの上を ぴょんぴょん はねる。
+mutsugoro|ムツゴロウ|fish:goby|2|3|15-20|#5a6a6a,#9aa8a8,#7fd0ff,#5a6a6a|ws|ひがたで ジャンプする 人気もの。
+tachiuo_r|タチウオ|fish:needle|2|3,4|80-150|#e0e8f0,#fff,#9aa8b8,#e0e8f0|p|ぎんいろの 刀みたいな 魚。|M
+kamasu|アカカマス|fish:barra|1|3|20-35|#c89a8a,#f0e0d8,#8a5a4a,#c89a8a|p|口が とがった スマートな 魚。
+hata_kue|クエ|fish:grp|4|3|80-150|#6a5a4a,#a09080,#3a2a1a,#6a5a4a|mot|まぼろしの 高級魚。|L
+kijihata|キジハタ|fish:grp|3|3|30-40|#c87a4a,#f0c0a0,#e8402a,#c87a4a|dot|オレンジの てんてんが ある ハタ。
+isaki|イサキ|fish:mack|1|3|25-40|#7a7a6a,#e0e0d0,#3a3a2a,#7a7a6a|hs|わかいころは しまもよう。
+takabe|タカベ|fish:sard|1|3|15-20|#4a6a9a,#e8f0f8,#ffd21f,#ffd21f|line|せなかに 黄色い 線。
+haokoze|ハオコゼ|fish:scorp|1|3|5-10|#c85a3a,#f0a080,#fff,#c85a3a|p|小さいけど 毒の トゲ。
+kusabi|ササノハベラ|fish:wrasse|1|3|15-20|#c88a5a,#f0d0b0,#7a4a2a,#c88a5a|line|ササの 葉っぱみたいな ベラ。
+mejiro|アオリイカのこども|squid|1|3|5-10|#e8d0c8,#fff,#c89080|dot|ちいさい アオリイカ。||cuttle
+amefurashi|アメフラシ|clione|1|3|20-30|#7a5a3a,#a08060,#5a3a2a|p|つつくと むらさきの しるを だす。
+namako|マナマコ|jelly|1|3|20-30|#3a4a3a,#5a6a5a,#222|p|もぐもぐ すなを 食べる。||arms
+hitode|イトマキヒトデ|star|1|3|8-12|#2f5aa0,#ff8a3a,#ff8a3a|mot|すなはまで よく 見つかる ヒトデ。
+murasakiuni|ムラサキウニ|urchin|1|3|5-8|#3a1a4a,#5a3a6a,#2a1a3a|p|いその 岩に たくさん いる。
+fujitsubo|カメノテ|shell|1|3|3-5|#8a8a7a,#c0c0b0,#4a4a3a|p|カメの 手に にている。||clam
+kaki|マガキ|shell|1|3|10-15|#9a9a8a,#d8d8c8,#5a5a4a|mot|海の ミルクと よばれる。||abalone
+hamaguri|ハマグリ|shell|1|3|5-8|#c8a87a,#f0e0c0,#8a6a4a|mot|すなはまに すむ 二まい貝。||clam
+asari|アサリ|shell|1|3|3-5|#a09a8a,#e0d8c8,#5a4a3a|mot|しおひがりの 人気もの。||clam
+shako|シャコ|shrimp|2|3|10-15|#8a8a6a,#c8c8a0,#2f9aff|p|パンチが とても はやい！||claw
+yadokari|ホンヤドカリ|crab|1|3|2-5|#e8603a,#ffa080,#c8a080|p|貝がらを おうちにして 引っこす。
+sawagani|イソガニ|crab|1|3|2-4|#4a5a3a,#8a9a7a,#c84a3a|sp|いそあそびで 見つかる 小さな カニ。
+kounagi|ウミヘビ|eel|3|0,3|80-150|#2a3a6a,#e0e8ff,#222|vs|しましまの 海の ヘビ。|M
+hanahige|ハナヒゲウツボ|eel|3|0|80-120|#1f3aff,#ffd21f,#1f3aff|p|あざやかな 青と黄色の ウツボ。|M
+tora_utsubo|トラウツボ|eel|3|0|60-100|#ffd0a0,#fff,#3a2a1a|sp|トラもようの ウツボ。|M
+ookeshi|オオモンハゲブダイ|fish:wrasse|2|0|40-60|#3a6aa0,#7ab0e0,#ff7aa0,#3a6aa0|scale|青と ピンクの はでな ブダイ。
+kuro_maguro_baby|メジマグロ|fish:tuna|2|4|40-60|#2a3a5a,#e0e8f0,#222,#2a3a5a|p|クロマグロの こども。
+hagatsuo|ハガツオ|fish:tuna|2|4|50-80|#3a5a7a,#e8f0f8,#1f2a4a,#3a5a7a|hs|歯が するどい カツオ。
+nisebou|ツムブリ|fish:mack|2|4|60-100|#2a5a8a,#e8f0f8,#ffd21f,#5ab0ff|hs|黄色と 青の すじ。|M
+sumagatsuo|スマ|fish:tuna|2|4|40-60|#2a4a6a,#e8f0f8,#3a3a3a,#2a4a6a|sp|おなかに お灸の あとみたいな もよう。
+kurokajiki|クロカジキ|fish:sword|5|4|300-450|#1a2a4a,#d0d8e0,#3a4a6a,#1a2a4a|p|カジキで いちばん 大きい。|L
+tsumaguroeso|ナンヨウカイワリ|fish:tai|3|4,0|50-80|#c0c8d0,#f0f4f8,#ffd21f,#ffd21f|sp|黄色い ヒレの アジの なかま。|M
+gintogi|ギンカガミ|fish:deep|2|4|20-30|#e0e8f0,#fff,#9aa8b8,#e0e8f0|p|鏡みたいに ぴかぴか。
+kobanzame|コバンザメ|fish:mack|2|4,0|50-80|#5a5a6a,#c0c0c8,#222,#5a5a6a|line|頭の きゅうばんで サメに くっつく。|M
+hyoumon_azarashi|ヒョウアザラシ|mammal|5|2|250-350|#6a6a6a,#c8c8c0,#3a3a3a|sp|ペンギンも 食べる 強い アザラシ。|L|seal
+kitaozottoseri|オットセイ|mammal|3|2,4|130-200|#5a3a2a,#8a6a5a,#3a2a1a|p|耳が ちょこんと ある。|M|seal
+supana|スナメリ|mammal|3|3|150-180|#a8b0b8,#d8dce0,#7a8088|p|せびれの ない ほほえみ イルカ。|M|beluga
+kamaguro|ナガスクジラ|mammal|5|4|1800-2400|#4a5a6a,#d0d8e0,#3a4a5a|p|2番目に 大きな クジラ。|L|whale
+semikujira|セミクジラ|mammal|5|2,4|1300-1800|#2a2a3a,#5a5a6a,#d8d8c8|p|頭に もじゃもじゃの こぶ。|L|whale
+hanagonshi|ハナゴンドウ|mammal|4|4|300-380|#9a9aa8,#d8d8e0,#5a5a6a|sp|からだに きずあとの もよう。|L|beluga
+tobiei|トビエイ|ray|3|3,4|60-100|#6a5a4a,#f0e8e0,#c8b8a0|p|ジャンプが とくいな エイ。|M
+nekozame2|サカタザメ|ray|3|3|80-120|#a08a6a,#f0e8d8,#5a4a3a|p|エイと サメの まんなかみたいな かたち。|M
+shibire|シビレエイ|ray|3|3|30-40|#c8a06a,#f0e0c8,#5a4a3a|sp|でんきを だして えものを しびれさせる。
+hirenaga|ヒレナガカンパチ|fish:mack|3|4|80-120|#5a6a7a,#e8eef4,#c8a060,#5a6a7a|line|せびれが 長い カンパチ。|M
+sakatazame|シノノメサカタザメ|ray|5|0|200-300|#8a9aa8,#e8eef4,#fff|ws|まぼろしの 大きな サカタザメ。|L
+`;
+function loadReal(){
+  const out=[];
+  for(const line of REAL_TXT.trim().split('\n')){
+    const p=line.split('|');if(p.length<9)continue;
+    const[id,name,form,star,stages,cm,cols,pat,fact,fsz,opt,opt2]=p;const[kind,shape]=form.split(':');
+    const[a,b]=cm.split('-').map(Number);const st=+star;
+    const art={kind,shape,c:cols.split(','),pat};
+    if(opt)art[opt]=1;if(opt2)art[opt2]=1;
+    if(opt)art.kind2=opt;
+    out.push(['r_'+id,name,st>=4?'rare':'normal',st,'L',[a,b||a],fact,{art,homeDef:stages.split(',').map(Number),fsz:fsz||null,real:1}]);
+  }
+  return out;
+}
+
+RAW.push(...loadReal());
 const FISH=RAW.map(([id,name,cls,star,face,cm,desc,o])=>{
   const base=cls==='monster'?MONSTER:cls==='legend'?LEGEND:cls==='gimmick'?{}:BYSTAR[star];
   return Object.assign({id,name,cls,star,face,cm,desc,speed:1},base,o||{});
 });
 const BYID=Object.fromEntries(FISH.map(f=>[f.id,f]));
+FISH.forEach(f=>{if(f.real){f.w*=.3;f.wf*=.3;}});
 const ROUND=60, FEVER_AT=10;
 const COL={ink:'#061a38',gold:'#ffd23f',coral:'#ff5c72',foam:'#eaf7ff',mint:'#5ef2c2',orange:'#ff8a2a',panel:'rgba(6,26,56,.82)'};
 const FD='"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif';
 const FB='"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif';
 
 // ================= 画像 =================
-const IMG={}, SIL={};
-let loaded=0; const TOTAL=FISH.length+1;
-FISH.forEach(f=>{const im=new Image();im.onload=()=>{loaded++;SIL[f.id]=silhouette(im);};im.onerror=()=>{loaded++;};im.src=IMGDATA[f.id];IMG[f.id]=im;});
+const IMG=new Proxy({},{get(t,k){if(!(k in t)){const f=BYID[k];if(f&&f.art){t[k]=renderArt(f);SIL[k]=silhouette(t[k]);}}return t[k];}});
+const SIL=new Proxy({},{get(t,k){if(!(k in t)){const f=BYID[k];if(f&&f.art)IMG[k];}return t[k];}});
+let loaded=0; const TOTAL=FISH.filter(f=>!f.art).length+1;
+FISH.forEach(f=>{if(f.art)return;const im=new Image();im.onload=()=>{loaded++;SIL[f.id]=silhouette(im);};im.onerror=()=>{loaded++;};im.src=IMGDATA[f.id];IMG[f.id]=im;});
 const TITLE=new Image();TITLE.onload=TITLE.onerror=()=>{loaded++;};TITLE.src=IMGDATA.__title;
 function silhouette(im){const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d');x.drawImage(im,0,0);x.globalCompositeOperation='source-in';x.fillStyle='#0d2c5c';x.fillRect(0,0,c.width,c.height);return c;}
 
@@ -357,7 +1034,7 @@ const HOME={snowkurage:[2,1],diasalmon:[2,4],kantera:[1],penguin:[2],tsuraraswor
   arowana:[0,3],ankou:[1],raiutsubo:[1,3],kame:[0,3,4],ei:[4],coela:[1,3],ryugu:[1,2],hammer:[2,4],kajiki:[0,2,4],tako:[1,3],
   magma:[1,4],cyber:[4],ice:[1,2],drill:[0,3],eleki:[1],bombei:[0,3],stealth:[2,4]};
 FISH.forEach(f=>{
-  f.home=f.cls==='legend'?STAGES.map((s,i)=>s.bosses.includes(f.id)?i:-1).filter(i=>i>=0):f.cls==='gimmick'?STAGES.map((_,i)=>i):HOME[f.id];
+  f.home=f.cls==='legend'?STAGES.map((s,i)=>s.bosses.includes(f.id)?i:-1).filter(i=>i>=0):f.cls==='gimmick'?STAGES.map((_,i)=>i):(HOME[f.id]||f.homeDef);
   f.medal=f.cls==='legend'?150:f.cls==='monster'?40:f.cls==='gimmick'?({treasure:30,bomb:-5,time:3,ink:3,crab:100})[f.gim]:({1:2,2:3,3:5,4:10,5:15})[f.star];
   f.hp=Math.round(20+f.pw*f.pw*6);
 });
@@ -422,7 +1099,7 @@ function banner(s,y,color){
 
 // ================= 魚影のサイズ =================
 const SIZES={S:{len:58,label:'小',v:58},M:{len:86,label:'中',v:48},L:{len:124,label:'大',v:38},XL:{len:178,label:'特大',v:28}};
-function sizeOf(d){if(d.cls==='mine')return d.msz||'M';if(d.cls==='legend')return 'XL';if(d.cls==='monster'||d.star===5)return 'L';if(d.cls==='gimmick'||d.star>=3)return 'M';return 'S';}
+function sizeOf(d){if(d.fsz)return d.fsz;if(d.cls==='mine')return d.msz||'M';if(d.cls==='legend')return 'XL';if(d.cls==='monster'||d.star===5)return 'L';if(d.cls==='gimmick'||d.star>=3)return 'M';return 'S';}
 FISH.forEach(f=>{f.sz=sizeOf(f);});
 
 // ================= 水面 =================
@@ -663,6 +1340,7 @@ function cast(x,y,free){
   if(!free)addMedals(-rod.cost,72*S,40*S);
   const tx=clamp(x,24*S,W-24*S),ty=clamp(y,TOP+16*S,BOTTOM),tip=tipPos();
   for(const f of g.fish)if(f.mode==='approach'||f.mode==='nibble')f.mode='swim';
+  for(const f of g.fish){f.aimed=false;if(f.mode==='approach'||f.mode==='nibble')f.mode='swim';}g.cand=null;
   g.aim=null;if(kid()){let bd=1e9;for(const f of g.fish){if(f.mode!=='swim'||f.leaving||f.d.cls==='legend'&&false)continue;const d=Math.hypot(f.x-x,f.y-y);if(d<Math.max(70*S,f.len*.7)&&d<bd){bd=d;g.aim=f;}}
     if(g.aim){g.aim.aimed=true;SFX.shimmer();}}
   g.lure={x:tip.x,y:tip.y,sx:tip.x,sy:tip.y,tx,ty,t:0,fly:true};g.sub='cast';g.cand=null;g.bite=0;SFX.cast();
@@ -674,7 +1352,8 @@ function tap(x,y){
   if(state!=='play'){if(state==='zukan'&&zSel){zSel=null;delArm=null;return;}if(state==='tank'){tankTap(x,y);return;}if(state==='title'){newSession();state='play';}return;}
   const sub=g.sub;
   if(sub==='ready'){if(y<PIER)cast(x,y);}
-  else if(sub==='wait'||sub==='cast'){const c=g.cand;if(c&&g.bite>0)startFight(c);else if(c&&c.mode==='nibble'){if(kid())startFight(c);else g.holdMsg=1;}else if(c&&kid()){}else if(y<PIER)cast(x,y,true);}
+  else if(sub==='wait'||sub==='cast'){const c=g.cand;
+    if(kid()&&y<PIER){const o=g.fish.find(f=>f!==c&&f.mode==='swim'&&!f.leaving&&Math.hypot(f.x-x,f.y-y)<Math.max(60*S,f.len*.6));if(o){cast(x,y,true);return;}}if(c&&g.bite>0)startFight(c);else if(c&&c.mode==='nibble'){if(kid())startFight(c);else g.holdMsg=1;}else if(y<PIER)cast(x,y,true);}
   else if(sub==='fight'){const B=fightButtons();if(Math.hypot(x-B.sp.x,y-B.sp.y)<B.sp.r*1.2){trySpecial();return;}reelTap();}
   else if(sub==='card'&&g.card.done&&g.card.t>g.card.done+.5){g.card=null;afterResolve();}
 }
@@ -724,6 +1403,7 @@ function special(paid){
   const dmg=Math.round(F.max*rod.shock*(1+.15*upg().shock));F.hp=Math.max(0,F.hp-dmg);F.ten=0;F.rage=false;F.rageT=2.2;F.chance=2;g.shockT=.9;g.flash=.7;
   msg('必殺技 ショック！',COL.gold,true);pop('-'+dmg,F.c.x,F.c.y-30*S,COL.gold);SFX.shock();
 }
+function reelIn(){if(!g||!g.lure)return;clearAim();for(const f of g.fish)if(f.mode==='approach'||f.mode==='nibble')f.mode='swim';g.cand=null;g.bite=0;g.lure=null;g.sub='ready';SFX.reel();}
 function clearAim(){for(const f of g.fish)f.aimed=false;g.aim=null;}
 function afterResolve(){clearAim();g.sub='ready';g.lure=null;if(save.medals<1)g.sub='broke';}
 function endSession(){state='result';if(g.earned>save.best){save.best=g.earned;g.record=true;}save.maxCombo=Math.max(save.maxCombo||0,g.maxCombo);persist();}
@@ -1146,7 +1826,8 @@ function drawPlay(){
   const by=PIER-74*S;
   if(KID){
     if(g.sub==='ready')banner('つりたい 魚を タッチ！',by,COL.mint);
-    else if(g.sub==='wait'||g.sub==='cast'){if(g.bite>0||g.cand&&g.cand.mode==='nibble')banner('いまだ！ タッチ！',by,COL.gold);else if(g.cand)banner('くるよ… くるよ…',by,'#ff9ad0');else banner('ほかの 魚も タッチで ねらえるよ',by,'#9fd8ff');}
+    else if(g.sub==='wait'||g.sub==='cast'){if(g.bite>0||g.cand&&g.cand.mode==='nibble')banner('いまだ！ タッチ！',by,COL.gold);else if(g.cand)banner('くるよ… ほかの魚を タッチで かえられるよ',by,'#ff9ad0');else banner('ほかの 魚を タッチで なげなおし',by,'#9fd8ff');
+      {const bw=150*S,y2=PIER+22*S;button(W-bw-12*S,y2,bw,46*S,'↩ まきもどす','#ffffff',reelIn,16*S);}}
   }
   else if(g.sub==='ready'&&g.bossTip>0&&g.warnT<=0){banner('ボスには パワーロッドが おすすめ！',PIER-74*S,COL.coral);}
   else if(g.sub==='ready'&&g.rodInfo>0){const r=rodOf(save.rod);banner(r.desc,by,r.color);}
@@ -1394,17 +2075,21 @@ function drawZukan(){
   const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0b4a96');bg.addColorStop(1,'#05214f');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
   text('ずかん',18*S,32*S,26*S,COL.gold,{align:'left',stroke:6*S});
   text(caughtCount()+' / '+FISH.length,W-18*S,34*S,17*S,COL.foam,{align:'right',font:FB,weight:800});
-  const keys=Object.keys(CLS),tw=(W-24*S)/keys.length;
-  keys.forEach((k,i)=>{const x=12*S+i*tw,on=zTab===k,n=FISH.filter(f=>f.cls===k),got=n.filter(f=>save.caught[f.id]).length;
-    ctx.fillStyle=on?CLS[k].color:'rgba(0,0,0,.25)';rr(x+2*S,58*S,tw-4*S,40*S,10*S);ctx.fill();
-    fitText(CLS[k].tab,x+tw/2,72*S,12*S,tw-10*S,on?COL.ink:COL.foam,{font:FB,weight:800});
-    text(got+'/'+n.length,x+tw/2,88*S,10*S,on?COL.ink:'#9fb6d8',{font:FB,weight:800});
-    btns.push({x,y:58*S,w:tw,h:40*S,cb:()=>{zTab=k;}});});
-  const list=FISH.filter(f=>f.cls===zTab);if(zTab==='mine'&&mineList.length<MINE_MAX)list.push({add:true});
-  const cols=W>600?4:3,gap=8*S,top=110*S,bottom=74*S,rows=Math.max(1,Math.ceil(list.length/cols));
-  const cw=(W-24*S-gap*(cols-1))/cols,chh=Math.min(cw*1.05,(H-top-bottom-gap*(rows-1))/rows);
+  const keys=ZTABS.map(t=>t.k),tw=(W-24*S)/keys.length;
+  ZTABS.forEach((t,i)=>{const k=t.k,x=12*S+i*tw,on=zTab===k,n=FISH.filter(t.f),got=n.filter(f=>save.caught[f.id]).length;
+    ctx.fillStyle=on?t.color:'rgba(0,0,0,.25)';rr(x+2*S,58*S,tw-4*S,40*S,10*S);ctx.fill();
+    fitText(t.tab,x+tw/2,72*S,12*S,tw-8*S,on?COL.ink:COL.foam,{font:FB,weight:800});
+    fitText(got+'/'+n.length,x+tw/2,88*S,10*S,tw-6*S,on?COL.ink:'#9fb6d8',{font:FB,weight:800});
+    btns.push({x,y:58*S,w:tw,h:40*S,cb:()=>{if(zTab!==k){zTab=k;zScroll=0;}}});});
+  const tabDef=ZTABS.find(t=>t.k===zTab)||ZTABS[0];
+  const list=FISH.filter(tabDef.f);if(zTab==='mine'&&mineList.length<MINE_MAX)list.push({add:true});
+  const cols=W>600?5:W>400?4:3,gap=8*S,top=108*S,bottom=74*S,rows=Math.max(1,Math.ceil(list.length/cols));
+  const cw=(W-24*S-gap*(cols-1))/cols,chh=cw*1.05,viewH=H-top-bottom,contentH=rows*(chh+gap)-gap;
+  zMax=Math.max(0,contentH-viewH);zScroll=clamp(zScroll,0,zMax);
+  ctx.save();ctx.beginPath();ctx.rect(0,top-4*S,W,viewH+8*S);ctx.clip();
   list.forEach((f,i)=>{
-    const x=12*S+(i%cols)*(cw+gap),y=top+(i/cols|0)*(chh+gap);
+    const x=12*S+(i%cols)*(cw+gap),y=top+(i/cols|0)*(chh+gap)-zScroll;
+    if(y+chh<top-4*S||y>top+viewH+4*S)return;
     if(f.add){ctx.save();ctx.setLineDash([6*S,5*S]);ctx.strokeStyle='#ff9ad0';ctx.lineWidth=2.5*S;rr(x,y,cw,chh,12*S);ctx.stroke();ctx.restore();
       ctx.fillStyle='rgba(255,154,208,.12)';rr(x,y,cw,chh,12*S);ctx.fill();
       text('＋',x+cw/2,y+chh*.4,40*S,'#ff9ad0',{stroke:4*S});fitText('魚を かく',x+cw/2,y+chh-16*S,12*S,cw-8*S,'#fff',{font:FB,weight:800});
@@ -1417,6 +2102,9 @@ function drawZukan(){
     fitText(got||f.cls==='mine'?f.name:'？？？',x+cw/2,y+chh-14*S,11*S,cw-10*S,got?COL.foam:'#7f9cc7',{font:FB,weight:800});
     btns.push({x,y,w:cw,h:chh,cb:()=>{zSel=f;}});
   });
+  ctx.restore();
+  if(zMax>0){const th=Math.max(30*S,viewH*viewH/contentH),ty=top+(viewH-th)*(zScroll/zMax);ctx.fillStyle='rgba(255,255,255,.35)';rr(W-7*S,ty,4*S,th,2*S);ctx.fill();
+    if(zScroll<4)text('ゆびで うえ・したに うごくよ',W/2,H-80*S,11*S,'#fff',{font:FB,weight:800,stroke:4*S});}
   const bw=Math.min(200*S,W-60*S);
   button((W-bw)/2,H-60*S,bw,44*S,'もどる','#ffffff',()=>{state=zBack;if(state==='title')newSession();},17*S);
   if(zTab==='mine'&&!mineList.length){text('じぶんで 魚を',W/2,top+chh+40*S,16*S,'#fff',{font:FB,weight:800});text('かいてみよう！',W/2,top+chh+66*S,16*S,'#fff',{font:FB,weight:800});}
@@ -1442,7 +2130,16 @@ function drawZukan(){
     text('タップで とじる',W/2,cy+ch2+24*S,13*S,COL.foam,{font:FB,weight:800});
   }
 }
-let delArm=null;
+let delArm=null,zScroll=0,zMax=0,zDrag=null;
+const ZTABS=[
+  {k:'normal',tab:'ノーマル',color:'#4fb3ff',f:f=>f.cls==='normal'&&!f.real},
+  {k:'rare',tab:'レア',color:'#c77dff',f:f=>f.cls==='rare'&&!f.real},
+  {k:'real',tab:'うみの なかま',color:'#7fe0ff',f:f=>!!f.real},
+  {k:'monster',tab:'モンスター',color:'#ff7a3d',f:f=>f.cls==='monster'},
+  {k:'legend',tab:'レジェンド',color:'#ffd23f',f:f=>f.cls==='legend'},
+  {k:'gimmick',tab:'ギミック',color:'#5ef2c2',f:f=>f.cls==='gimmick'},
+  {k:'mine',tab:'じぶん',color:'#ff9ad0',f:f=>f.cls==='mine'},
+];
 
 function frame(){
   btns=[];ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
@@ -1456,10 +2153,14 @@ requestAnimationFrame(loop);
 // ================= 入力 =================
 function pos(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
 let swp=null;
-cv.addEventListener('pointerdown',e=>{e.preventDefault();const p=pos(e);swp={x:p.x,y:p.y};tap(p.x,p.y);});
-cv.addEventListener('pointerup',e=>{if(!swp)return;const p=pos(e),dx=p.x-swp.x,dy=p.y-swp.y;swp=null;if(Math.hypot(dx,dy)<35*S)return;
+cv.addEventListener('pointerdown',e=>{e.preventDefault();const p=pos(e);
+  if(state==='zukan'&&!zSel){zDrag={x:p.x,y:p.y,s:zScroll,moved:false};try{cv.setPointerCapture(e.pointerId);}catch(_){}return;}
+  swp={x:p.x,y:p.y};tap(p.x,p.y);});
+cv.addEventListener('pointermove',e=>{if(!zDrag)return;const p=pos(e),dy=p.y-zDrag.y;if(Math.abs(dy)>8*S)zDrag.moved=true;if(zDrag.moved)zScroll=clamp(zDrag.s-dy,0,zMax);});
+cv.addEventListener('wheel',e=>{if(state==='zukan'&&!zSel){e.preventDefault();zScroll=clamp(zScroll+e.deltaY,0,zMax);}},{passive:false});
+cv.addEventListener('pointerup',e=>{if(zDrag){const d=zDrag;zDrag=null;if(!d.moved){const p=pos(e);tap(p.x,p.y);}return;}if(!swp)return;const p=pos(e),dx=p.x-swp.x,dy=p.y-swp.y;swp=null;if(Math.hypot(dx,dy)<35*S)return;
   swipe(Math.abs(dx)>Math.abs(dy)?(dx<0?'L':'R'):(dy<0?'U':'D'));});
-cv.addEventListener('pointercancel',()=>{swp=null;});
+cv.addEventListener('pointercancel',()=>{swp=null;zDrag=null;});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{if(e.repeat)return;
   const ak={ArrowLeft:'L',ArrowRight:'R',ArrowDown:'D'}[e.code];if(ak){e.preventDefault();swipe(ak);return;}
